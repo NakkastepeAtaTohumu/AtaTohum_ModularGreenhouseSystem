@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding ="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" >
+  <PropertyGroup Label="Globals" >
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{07ece8a4-c0bf-4c22-9d66-df2236a71167}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\WirePacker.cpp" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\WireSlave.cpp" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\WireSlaveRequest.cpp" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\WireUnpacker.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\WireCrc.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\WirePacker.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\WireSlave.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\WireSlaveRequest.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\WireUnpacker.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)keywords.txt" />
+<Text Include="$(MSBuildThisFileDirectory)library.properties" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)CHANGELOG.md" />
+<None Include="$(MSBuildThisFileDirectory)library.json" />
+<None Include="$(MSBuildThisFileDirectory)LICENSE.md" />
+<None Include="$(MSBuildThisFileDirectory)README.md" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{4365d99f-d2a9-4030-83cf-ff367240ce31}</ItemsProjectGuid>
+    <ItemsProjectName>fGMSLib</ItemsProjectName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)readme.txt" />
+    <Text Include="$(MSBuildThisFileDirectory)library.properties" />
+    <Text Include="$(MSBuildThisFileDirectory)src\fGMSLib.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSController.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSLib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSMessages.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSModule.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSStringFuctions.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSController.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSLogs.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSMessages.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSModule.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSStringFunctions.h" />
+  </ItemGroup>
+</Project>
