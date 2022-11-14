@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef fGMSStringFunctions_h
-#define fGMSStringFunctions_h
+#ifndef fNETStringFunctions_h
+#define fNETStringFunctions_h
 
 #include "Arduino.h"
 

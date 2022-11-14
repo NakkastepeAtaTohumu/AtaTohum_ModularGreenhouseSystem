@@ -17,22 +17,22 @@
   <ItemGroup>
     <Text Include="$(MSBuildThisFileDirectory)readme.txt" />
     <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-    <Text Include="$(MSBuildThisFileDirectory)src\fGMSLib.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSController.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSLib.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSMessages.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETModule.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSStringFuctions.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fNET.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETController.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETLib.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETMessages.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETModule.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETStringFuctions.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSController.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSLogs.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSMessages.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETModule.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSStringFunctions.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNET.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETController.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETLib.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETLogs.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETMessages.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETModule.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETStringFunctions.h" />
   </ItemGroup>
 </Project>

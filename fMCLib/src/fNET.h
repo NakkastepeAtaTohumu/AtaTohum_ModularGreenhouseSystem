@@ -20,24 +20,26 @@ public:
 
 class fNETConnection {
 public:
+    fNETConnection(String my_mac, void(*send_message)(String, String)) {
+        mac = my_mac;
+        queue_msg = send_message;
+    }
+
     void AddQueryResponder(String query, DynamicJsonDocument(*Response)(DynamicJsonDocument)) {
         Responders[ResponderNum] = new fNETQueryResponder(query, Response);
         ResponderNum++;
     }
 
-    virtual void SendMessage(JsonObject msg, String destination_mac) {
-
-    }
-
-    JsonObject* Query(DynamicJsonDocument q) {
+    JsonObject* Query(DynamicJsonDocument q, String mac) {
         int sentQueryID = LastQueryID++;
 
         Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
 
         q["queryID"] = sentQueryID;
         q["tag"] = "query";
+        q["recipient"] = mac;
 
-        SendToController(q);
+        Send(q);
 
         long startWaitms = millis();
         while (millis() - startWaitms < 5000) {
@@ -58,18 +60,11 @@ public:
         return nullptr;
     }
 
-private:
-
-    virtual void QueueMessage(String msg) {
-
-    }
-
-    void SendToController(DynamicJsonDocument data) {
+    void Send(DynamicJsonDocument data) {
         DynamicJsonDocument d(data);
 
-
         if (!d.containsKey("source"))
-            d["source"] = WiFi.macAddress();
+            d["source"] = mac;
 
         if (!d.containsKey("recipient"))
             d["recipient"] = "controller";
@@ -77,18 +72,23 @@ private:
         String str;
         serializeJson(d, str);
 
-        QueueMessage("JSON" + str);
+        queue_msg("JSON" + str, d["recipient"]);
     }
 
     void OnReceiveMessageService(DynamicJsonDocument d) {
-        DynamicJsonDocument d(1024);
-
         if (d["tag"] == "query")
             ProcessQuery(d);
+
+        if (MessageReceived != nullptr)
+            MessageReceived(d);
 
         ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
     }
 
+    void(*MessageReceived)(DynamicJsonDocument) = nullptr;
+
+    bool IsConnected = false;
+private:
     void ProcessQuery(DynamicJsonDocument q) {
         DynamicJsonDocument r(4096);
 
@@ -111,10 +111,8 @@ private:
         serializeJson(send, s_str);
 
         Serial.println("[fGMS fNET] Query response: " + s_str);
-        SendToController(send);
+        Send(send);
     }
-
-    bool IsConnected;
 
     void OnDisconnectService() {
         Serial.println("[fGMS fNet] Disconencted from controller!");
@@ -124,14 +122,15 @@ private:
         Serial.println("[fGMS fNet] Connected to controller!");
     }
 
-    int LastQueryID;
+    int LastQueryID = 0;
 
     CircularBuffer<DynamicJsonDocument*, 8> ReceivedJSONBuffer;
 
     fNETQueryResponder* Responders[32];
-    int ResponderNum;
+    int ResponderNum = 0;
 
-    String mac;
+    String mac = "";
 
+    void(*queue_msg)(String, String);
 };
 #endif

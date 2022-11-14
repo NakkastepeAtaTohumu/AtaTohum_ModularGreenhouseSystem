@@ -1,4 +1,4 @@
-#include "fGMSLib.h"
+#include "fNETLib.h"
 //#include "fSerialParser.h"
 
 #include <ArduinoOTA.h>
@@ -12,7 +12,13 @@ void setup() {
 
     WiFi.begin("BK_School", "8K-$cH0oL!");
 
-    fNETModule::Init();
+    fNETConnection* c = fNETModule::Init();
+
+    DynamicJsonDocument d(512);
+
+    d["tag"] = "test";
+
+    c->Send(d);
 
     /*fSerialParser::AddCommand("query", []() {
         Serial.println("[fGMS Main] Sending query...");

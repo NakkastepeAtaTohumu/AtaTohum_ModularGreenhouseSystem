@@ -15,7 +15,7 @@
 #endif
 
 #include "fNETModule.h"
-#include "fGMSController.h"
+#include "fNETController.h"
 
 #endif
 

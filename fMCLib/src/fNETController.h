@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef fGMSController_h
-#define fGMSController_h
+#ifndef fNETController_h
+#define fNETController_h
 
 #include <Wire.h>
 #include <WiFi.h>
@@ -11,9 +11,9 @@
 #include <LittleFS.h>
 #include <CircularBuffer.h>
 
-#include "fGMSStringFunctions.h"
-#include "fGMSMessages.h"
-#include "fGMSLib.h"
+#include "fNETStringFunctions.h"
+#include "fNETMessages.h"
+#include "fNETLib.h"
 
 class fNETController {
 public:
@@ -29,7 +29,6 @@ public:
         fNETSlaveConnection(uint8_t address, int port) : Config(1024) {
             i2c_address = address;
             i2c_port = port;
-
             RequestConfig();
         }
 
@@ -37,7 +36,6 @@ public:
             MAC_Address = mac;
             i2c_address = address;
             i2c_port = port;
-
             RequestConfig();
         }
 
@@ -46,11 +44,11 @@ public:
             MAC_Address = mac_address;
 
             isOnline = false;
-
             RequestConfig();
         }
 
         fNETSlaveConnection() : Config(1024) {
+            isOnline = false;
         }
 
         void RequestConfig() {
@@ -59,11 +57,13 @@ public:
 
             DynamicJsonDocument q(128);
 
-            q["command"] = "getConfig";
             q["source"] = "controller";
-            q["recipient"] = MAC_Address;
+            q["command"] = "getConfig";
 
-            QueueMessage(q);
+            String str;
+            serializeJson(q, str);
+
+            QueueStr("JSON" + str);
         }
 
         void Poll(TwoWire* wire) {
@@ -79,12 +79,12 @@ public:
                 CheckConnection(wire);
         }
 
-        void QueueMessage(String msg) {
+        void QueueStr(String msg) {
             //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Queue: " + msg);
             SendBuffer.push(msg);
         }
 
-        void QueueMessage(DynamicJsonDocument data) {
+        void SendMessage(DynamicJsonDocument data) {
             DynamicJsonDocument d(data);
 
             if (!d.containsKey("source"))
@@ -93,14 +93,11 @@ public:
             if (!d.containsKey("recipient"))
                 d["recipient"] = MAC_Address;
 
-            String str;
-            serializeJson(d, str);
-
-            QueueMessage("JSON" + str);
+            Connection->Send(d);
         }
 
         void SetI2CAddr(uint8_t addr) {
-            QueueMessage("JSON{\"command\":\"setI2CAddr\", \"addr\":" + String(addr) + "\"}");
+            QueueStr("JSON{\"command\":\"setI2CAddr\", \"addr\":" + String(addr) + "\"}");
         }
 
         String GetMacAddress(TwoWire* wire) {
@@ -108,40 +105,6 @@ public:
         }
 
         DynamicJsonDocument Config;
-
-        int LastQueryID;
-
-        JsonObject* Query(DynamicJsonDocument q) {
-            int sentQueryID = LastQueryID++;
-
-            Serial.println("[fGMS fNET Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
-
-            q["queryID"] = sentQueryID;
-            q["tag"] = "query";
-            q["source"] = "controller";
-            q["recipient"] = MAC_Address;
-
-            QueueMessage(q);
-
-            long startWaitms = millis();
-            while (millis() - startWaitms < 5000) {
-                delay(250);
-
-                for (int i = 0; i < ReceivedJSONBuffer.size(); i++) {
-                    DynamicJsonDocument* r = ReceivedJSONBuffer[i];
-                    //Serial.println("[fGMS fNET Query " + String(sentQueryID) + "] check returned data:" + String(i));
-                    //Serial.println("[fGMS fNET Query " + String(sentQueryID) + "] data:" + r["tag"]);
-
-                    if ((*r)["tag"] == "queryResult" && (*r)["queryID"] == sentQueryID) {
-                        Serial.println("[fGMS fNET Query " + String(sentQueryID) + "] Received query return.");
-                        return new JsonObject((*r)["queryResult"].as<JsonObject>());
-                    }
-                }
-            }
-
-            return nullptr;
-        }
-
     private:
         CircularBuffer<String, 100> SendBuffer;
 
@@ -364,52 +327,10 @@ public:
 
             if (d["tag"] == "config")
                 OnReceiveConfig(d["data"]);
-            else if (d["tag"] == "query")
-                ProcessQuery(d);
             else if (d["recipient"] != "controller")
-                SendMessageTo(d["recipient"], msg); // Forward message
-
-            ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
-        }
-
-        void ProcessQuery(DynamicJsonDocument q) {
-            DynamicJsonDocument r(4096);
-
-            if (q["query"] == "getAllKnownModuleMACAddresses") {
-                JsonArray a = r.createNestedArray("modules");
-                for (int i = 0; i < ModuleCount; i++)
-                    a.add(Modules[i]->MAC_Address);
-            }
-
-            if (q["query"] == "getAllCurrentModuleData") {
-                SaveModules();
-
-                JsonArray a = JsonArray(data["modules"]);
-                JsonArray a2 = r.createNestedArray("modules");
-
-                a2.set(a);
-            }
-
-            for (int i = 0; i < ResponderNum; i++) {
-                if (Responders[i]->queryType == q["query"]) {
-                    r = Responders[i]->Response(q);
-                    break;
-                }
-            }
-
-            DynamicJsonDocument send(4096);
-
-            send["source"] = "controller";
-            send["tag"] = "queryResult";
-            send["query"] = q["query"];
-            send["queryID"] = q["queryID"];
-            send["queryResult"] = r;
-
-            String s_str;
-            serializeJson(send, s_str);
-
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Query response: " + s_str);
-            QueueMessage("JSON" + s_str);
+                Connection->Send(d); // Forward message
+            else
+                Connection->OnReceiveMessageService(d);
         }
 
         void OnReceiveConfig(String d) {
@@ -423,8 +344,6 @@ public:
 
         void Disconnected() {
             Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Disconnected!");
-
-            isOnline = false;
             lastCheckedMillis = millis();
         }
 
@@ -457,12 +376,36 @@ public:
         long lastCheckedMillis = 0;
     };
 
-    static void Init() {
+    static fNETConnection* Init() {
+        Connection = new fNETConnection("controller", &msghandler);
+
         Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
         ReadConfig();
 
         SetupI2C();
+
+        Serial.println("[fGMS] I2C OK.");
+
+        Connection->AddQueryResponder("getAllCurrentModuleData", [](DynamicJsonDocument) {
+            DynamicJsonDocument r(1024);
+            SaveModules();
+
+            JsonArray a = JsonArray(data["modules"]);
+            JsonArray a2 = r.createNestedArray("modules");
+
+            a2.set(a);
+            return r;
+            });
+
+        Serial.println("[fGMS] Loading modules...");
+
+        LoadModules();
+
+        Serial.println("[fGMS] Done.");
+
+        Connection->IsConnected = true;
+        return Connection;
     }
 
     static DynamicJsonDocument data;
@@ -484,47 +427,21 @@ public:
         Serial.println("[fGMS] Saved.");
     }
 
-    static void SendMessageTo(String mac, String msg) {
-        Serial.println("[fGMS Controller] Send msg to: " + mac);
-        Serial.println("[fGMS Controller] Msg data: " + msg);
-
-        fNETSlaveConnection* d = GetModuleByMAC(mac);
-
-        if(d == nullptr)
-            Serial.println("[fGMS Controller] No module with the specified MAC address found.");
-
-        d->QueueMessage(msg);
-    }
-
-    static void SendJSONTo(String mac, DynamicJsonDocument data) {
-        Serial.println("[fGMS Controller] Send msg to: " + mac);
-
-        DynamicJsonDocument m(data);
-        fNETSlaveConnection* d = GetModuleByMAC(mac);
-
-        if (d == nullptr)
-            Serial.println("[fGMS Controller] No module with the specified MAC address found.");
-
-        d->QueueMessage(m);
-    }
-
     static fNETSlaveConnection* GetModuleByMAC(String mac) {
+        Serial.println("[fNET] Get module: " + mac);
         for (int i = 0; i < ModuleCount; i++) {
             fNETSlaveConnection* d = Modules[i];
 
             if (d->MAC_Address == mac)
                 return d;
         }
+        Serial.println("[fNET] Module not found");
         return nullptr;
-    }
-
-    static void AddQueryResponder(String query, DynamicJsonDocument(*Response)(DynamicJsonDocument)) {
-        Responders[ResponderNum] = new fGMSQueryResponder(query, Response);
-        ResponderNum++;
     }
 
     static fNETSlaveConnection* Modules[32];
     static int ModuleCount;
+    static fNETConnection* Connection;
 
 private:
     static void ReadConfig() {
@@ -541,8 +458,6 @@ private:
         String data_rawJson = data_file.readString();
         deserializeJson(data, data_rawJson);
         Serial.println("[fGMS Controller] Read config: " + data_rawJson);
-
-        LoadModules();
     }
 
     static void err_LittleFSMountError() {
@@ -550,10 +465,10 @@ private:
         Serial.println("[fGMS LittleFS] Attempt flash? (y/n)");
 
         while (!Serial.available()) {
-            digitalWrite(fGMS_PIN_INDICATOR_Y, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
             delay(500);
 
-            digitalWrite(fGMS_PIN_INDICATOR_Y, LOW);
+            digitalWrite(fNET_PIN_INDICATOR_Y, LOW);
             delay(500);
         }
 
@@ -581,10 +496,10 @@ private:
         Serial.println("[fGMS] Reset system config?");
 
         while (!Serial.available()) {
-            digitalWrite(fGMS_PIN_INDICATOR_Y, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
             delay(500);
 
-            digitalWrite(fGMS_PIN_INDICATOR_Y, LOW);
+            digitalWrite(fNET_PIN_INDICATOR_Y, LOW);
             delay(500);
         }
 
@@ -640,7 +555,7 @@ private:
     static void SetupI2C() {
         Serial.println("[fGMS fNET Controller] Beginnig I2Cs as master");
 
-        I2C1.begin(fGMS_SDA, fGMS_SCK, (uint32_t)800000);
+        I2C1.begin(fNET_SDA, fNET_SCK, (uint32_t)800000);
         //I2C2.begin(fGMS_SDA2, fGMS_SCK2, (uint32_t)800000);
 
         xTaskCreate(I2CTask, "fGMS_fNETTask", 10000, nullptr, 0, nullptr);
@@ -767,7 +682,11 @@ private:
         }
     }
 
-    static fGMSQueryResponder* Responders[32];
-    static int ResponderNum;
+    static void msghandler(String msg, String dest) {
+        fNETSlaveConnection* m = GetModuleByMAC(dest);
+
+        if (m != nullptr)
+            m->QueueStr(msg);
+    }
 };
 #endif

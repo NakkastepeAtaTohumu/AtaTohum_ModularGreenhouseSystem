@@ -1,25 +1,25 @@
 #pragma once
 
-#ifndef fGMSMesssages_h
-#define fGMSMessages_h
+#ifndef fNETMesssages_h
+#define fNETMessages_h
 
 #include "Arduino.h"
-#include "fGMSStringFunctions.h"
+#include "fNETStringFunctions.h"
 
 #include <ArduinoJson.hpp>
 #include <ArduinoJson.h>
 
 #ifndef fGMS_USE_CUSTOM_PINS
 
-#define fGMS_SDA 25
-#define fGMS_SCK 26
+#define fNET_SDA 25
+#define fNET_SCK 26
 
-#define fGMS_SDA2 18
-#define fGMS_SCK2 19
+#define fNET_SDA2 18
+#define fNET_SCK2 19
 
-#define fGMS_PIN_INDICATOR_G 27
-#define fGMS_PIN_INDICATOR_Y 33
-#define fGMS_PIN_INDICATOR_R 32
+#define fNET_PIN_INDICATOR_G 27
+#define fNET_PIN_INDICATOR_Y 33
+#define fNET_PIN_INDICATOR_R 32
 
 #endif
 

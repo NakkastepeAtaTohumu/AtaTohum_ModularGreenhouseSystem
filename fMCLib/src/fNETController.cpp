@@ -1,4 +1,4 @@
-#include "fGMSController.h"
+#include "fNETController.h"
 
 DynamicJsonDocument fNETController::data(1024);
 
@@ -10,5 +10,4 @@ int fNETController::ModuleCount;
 
 long fNETController::I2C_LastScanMs;
 
-fGMSQueryResponder* fNETController::Responders[32];
-int fNETController::ResponderNum;
+fNETConnection* fNETController::Connection;

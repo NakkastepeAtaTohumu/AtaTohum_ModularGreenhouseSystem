@@ -12,8 +12,9 @@
 #include <LittleFS.h>
 #include <CircularBuffer.h>
 
-#include "fGMSStringFunctions.h"
-#include "fGMSMessages.h"
+#include "fNETStringFunctions.h"
+#include "fNETMessages.h"
+#include "fNET.h"
 
 #define fGMS_ModuleTimeoutMS 500
 
@@ -29,7 +30,7 @@ enum fNETModuleState {
 
 class fNETModule {
 public:
-    static void Init() {
+    static fNETConnection* Init() {
         Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
         SetPins();
@@ -38,6 +39,10 @@ public:
         SetupI2C();
 
         xTaskCreate(MainTask, "fGMS_MainTask", 8192, nullptr, 0, nullptr);
+
+        Connection = new fNETConnection(WiFi.macAddress(), &I2C_Queue);
+
+        return Connection;
     }
 
     static String ModuleType;
@@ -58,70 +63,6 @@ public:
         Serial.println("[fGMS] Saved.");
     }
 
-    static void SendToController(String tag, String data) {
-        DynamicJsonDocument d(1024);
-        d["tag"] = tag;
-        d["data"] = data;
-        d["recipient"] = "controller";
-        d["source"] = WiFi.macAddress();
-
-        String str;
-
-        serializeJson(d, str);
-
-        I2C_Queue("JSON" + str);
-    }
-
-    static void SendToController(DynamicJsonDocument data) {
-        DynamicJsonDocument d(data);
-        
-
-        if (!d.containsKey("source"))
-            d["source"] = WiFi.macAddress();
-
-        if (!d.containsKey("recipient"))
-            d["recipient"] = "controller";
-
-        String str;
-        serializeJson(d, str);
-
-        I2C_Queue("JSON" + str);
-    }
-
-    static JsonObject* Query(DynamicJsonDocument q) {
-        int sentQueryID = LastQueryID++;
-
-        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
-
-        q["queryID"] = sentQueryID;
-        q["tag"] = "query";
-
-        SendToController(q);
-
-        long startWaitms = millis();
-        while (millis() - startWaitms < 5000) {
-            delay(250);
-
-            for (int i = 0; i < ReceivedJSONBuffer.size(); i++) {
-                DynamicJsonDocument* r = ReceivedJSONBuffer[i];
-                //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] check returned data:" + String(i));
-                //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] data:" + r["tag"]);
-
-                if ((*r)["tag"] == "queryResult" && (*r)["queryID"] == sentQueryID) {
-                    Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Received query return.");
-                    return new JsonObject((*r)["queryResult"].as<JsonObject>());
-                }
-            }
-        }
-
-        return nullptr;
-    }
-
-    static void AddQueryResponder(String query, DynamicJsonDocument(*Response)(DynamicJsonDocument)) {
-        Responders[ResponderNum] = new fGMSQueryResponder(query, Response);
-        ResponderNum++;
-    }
-
     static fNETModuleState State;
 
 private:
@@ -133,6 +74,8 @@ private:
 
     static bool err, fatal_err, working;
 
+    static fNETConnection* Connection;
+
     static void MainTask(void* param) {
         while (true) {
             I2C_CheckConnection();
@@ -143,13 +86,13 @@ private:
     }
 
     static void SetPins() {
-        pinMode(fGMS_PIN_INDICATOR_G, OUTPUT);
-        pinMode(fGMS_PIN_INDICATOR_Y, OUTPUT);
-        pinMode(fGMS_PIN_INDICATOR_R, OUTPUT);
+        pinMode(fNET_PIN_INDICATOR_G, OUTPUT);
+        pinMode(fNET_PIN_INDICATOR_Y, OUTPUT);
+        pinMode(fNET_PIN_INDICATOR_R, OUTPUT);
 
         //pinMode(2, OUTPUT);
 
-        digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+        digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
     }
 
     static void UpdateSignalState() {
@@ -176,43 +119,43 @@ private:
 
         switch (State) {
         case DISCONNECTED:
-            digitalWrite(fGMS_PIN_INDICATOR_G, LOW);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, HIGH);
-            digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, LOW);
+            digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
 
         case DISCONNECTED_ERROR:
-            digitalWrite(fGMS_PIN_INDICATOR_G, LOW);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, blink);
-            digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, LOW);
+            digitalWrite(fNET_PIN_INDICATOR_Y, blink);
+            digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
 
         case FATAL_ERROR:
-            digitalWrite(fGMS_PIN_INDICATOR_G, LOW);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, blink);
-            digitalWrite(fGMS_PIN_INDICATOR_R, !blink);
+            digitalWrite(fNET_PIN_INDICATOR_G, LOW);
+            digitalWrite(fNET_PIN_INDICATOR_Y, blink);
+            digitalWrite(fNET_PIN_INDICATOR_R, !blink);
             break;
 
         case CONNECTED_WORKING:
-            digitalWrite(fGMS_PIN_INDICATOR_G, HIGH);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, HIGH);
-            digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
 
         case CONNECTED_IDLE:
-            digitalWrite(fGMS_PIN_INDICATOR_G, blink);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, HIGH);
-            digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, blink);
+            digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
 
         case CONNECTED_ERR:
-            digitalWrite(fGMS_PIN_INDICATOR_G, HIGH);
-            digitalWrite(fGMS_PIN_INDICATOR_Y, blink);
-            digitalWrite(fGMS_PIN_INDICATOR_R, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_Y, blink);
+            digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
         }
@@ -324,21 +267,19 @@ private:
 
         Serial.println("[fGMS fNET] Beginnig I2C as slave with address: " + String(I2C_Address));
 
-        I2C.begin(I2C_Address, fGMS_SDA, fGMS_SCK, (uint32_t)800000);
+        I2C.begin(I2C_Address, fNET_SDA, fNET_SCK, (uint32_t)800000);
 
         I2C.onReceive(I2C_TransactionReceive);
-
-        I2C_Queue("test1");
-        I2C_Queue("test2");
-        I2C_Queue("test3");
-        I2C_Queue("test4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAb");
-        I2C_Queue("START  |1234567|1234567|1234567|1234567|1234567|1234567|1234567/");
-        I2C_Queue("START  |1234567|1234567|1234567|1234567|1234567|1234567|1234567/1234567|1234567|1234567|1234567|1234567|1234567|1234567|1234567/1234567|1234567|1234567|1234567|1234567|1234567|1234567|1234567/1234567|1234567|1234567|1234567|1234567|1234567|1234567|1234567/1234567|1234567|1234567|1234567|1234567|1234567|1234567|12");
 
         I2C_Enabled = true;
     }
 
     static void I2C_Queue(String msg) {
+        //Serial.println("[fGMS I2C] Queue data: " + msg);
+        I2C_SendBuffer.push(msg);
+    }
+
+    static void I2C_Queue(String msg, String destMAC) {
         //Serial.println("[fGMS I2C] Queue data: " + msg);
         I2C_SendBuffer.push(msg);
     }
@@ -365,6 +306,7 @@ private:
     }
 
     static void I2C_OnReceiveJSON(String msg) {
+        
         DynamicJsonDocument d(1024);
 
         deserializeJson(d, msg);
@@ -372,24 +314,30 @@ private:
         //if (d["source"] != "controller")
         //    return;
 
-        if (d["command"] == "getConfig")
-            I2C_SendConfig();
-        else if (d["command"] == "setI2CAddr")
-            I2C_SetAddr(d["addr"].as<int>());
-        else if (d["tag"] == "query")
-            ProcessQuery(d);
-
-        ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
+        if (d["command"].as<String>() != "") {
+            if (d["command"] == "getConfig")
+                I2C_SendConfig();
+            else if (d["command"] == "setI2CAddr")
+                I2C_SetAddr(d["addr"].as<int>());
+        }
+        else {
+            Connection->OnReceiveMessageService(d);
+        }
     }
 
     static void I2C_SendConfig() {
         String str_data;
+        String str_msg;
+        DynamicJsonDocument d(4096);
 
         data["macAddress"] = WiFi.macAddress();
 
         serializeJson(data, str_data);
 
-        SendToController("config", str_data);
+        d["tag"] = "config";
+        d["data"] = str_data;
+
+        Connection->Send(d);
     }
 
     static void I2C_SetAddr(uint8_t addr) {
@@ -400,38 +348,6 @@ private:
 
         Serial.println("[fGMS fNET] Rebooting to apply changes.");
         ESP.restart();
-    }
-
-    static fGMSQueryResponder* Responders[32];
-    static int ResponderNum;
-
-    static void ProcessQuery(DynamicJsonDocument q) {
-        DynamicJsonDocument r(4096);
-
-        if (q["query"] == "getConfig") {
-            r = data;
-        }
-
-        for (int i = 0; i < ResponderNum; i++) {
-            if (Responders[i]->queryType == q["query"]) {
-                r = Responders[i]->Response(q);
-                break;
-            }
-        }
-
-        DynamicJsonDocument send(4096);
-
-        send["recipient"] = q["source"];
-        send["tag"] = "queryResult";
-        send["query"] = q["query"];
-        send["queryID"] = q["queryID"];
-        send["queryResult"] = r;
-
-        String s_str;
-        serializeJson(send, s_str);
-
-        Serial.println("[fGMS fNET] Query response: " + s_str);
-        SendToController(send);
     }
 
     static void I2C_TransactionReceive(int bytes) {
@@ -613,10 +529,12 @@ private:
 
     static void I2C_OnDisconnect() {
         Serial.println("[fGMS fNet] Disconencted from controller!");
+        Connection->IsConnected = false;
     }
 
     static void I2C_OnReconnect() {
         Serial.println("[fGMS fNet] Connected to controller!");
+        Connection->IsConnected = true;
     }
 
     static void I2C_CheckConnection() {
@@ -635,8 +553,6 @@ private:
     }
 
     static int LastQueryID;
-
-    static CircularBuffer<DynamicJsonDocument*, 8> ReceivedJSONBuffer;
 };
 
 #endif
