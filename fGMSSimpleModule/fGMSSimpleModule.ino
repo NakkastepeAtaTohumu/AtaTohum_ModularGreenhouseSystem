@@ -5,8 +5,8 @@
 #include <esp_wifi.h>
 
 void setup() {
-    //fSerialParser::BeginAsTask(115200);
-    Serial.begin(115200);
+    fSerialParser::BeginAsTask(115200);
+    //Serial.begin(115200);
 
     Serial.println("fGMS Simple Module Test Startup...");
 

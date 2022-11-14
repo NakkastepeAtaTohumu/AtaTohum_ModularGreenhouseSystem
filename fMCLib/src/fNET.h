@@ -84,7 +84,7 @@ public:
 
         if (d["tag"] == "query")
             ProcessQuery(d);
-        else if (d["recipient"] != "controller") {
+        else if (d["recipient"] != mac) {
             Serial.println("[fNET] Forwarding message from " + d["source"].as<String>() + " to " + d["recipient"].as<String>());
             Send(d); // Forward message
         }

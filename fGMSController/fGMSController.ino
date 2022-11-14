@@ -7,8 +7,8 @@
 //fNETSlaveConnection* d = new fNETSlaveConnection((uint8_t)0x01, (int)0);
 
 void setup() {
-    //fSerialParser::BeginAsTask(115200);
-    Serial.begin(115200);
+    fSerialParser::BeginAsTask(115200);
+    //Serial.begin(115200);
 
     fNETConnection* c = fNETController::Init();
 

@@ -187,6 +187,7 @@ private:
         Serial.println("[fGMS LittleFS] LittleFS Mount error!");
         Serial.println("[fGMS LittleFS] Attempt flash? (y/n)");
 
+        delay(100);
         fatal_err = true;
         Error();
 
@@ -217,6 +218,7 @@ private:
         Serial.println("[fGMS] No data found!");
         Serial.println("[fGMS] Attempt reconfiguration?");
 
+        delay(100);
         Error();
 
         while (!Serial.available()) {
