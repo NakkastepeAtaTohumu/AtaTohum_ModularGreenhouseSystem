@@ -1,5 +1,5 @@
 #include "fNETLib.h"
-//#include "fSerialParser.h"
+#include "fSerialParser.h"
 
 #include <ArduinoOTA.h>
 #include <esp_wifi.h>
@@ -19,6 +19,22 @@ void setup() {
     d["tag"] = "test";
 
     c->Send(d);
+
+    DynamicJsonDocument d2(512);
+
+    d2["recipient"] = "24:0A:C4:EC:9C:3C";
+    d2["tag"] = "test1234";
+
+    c->Send(d2);
+
+    fSerialParser::AddCommand("save", []() {
+        fNETModule::Save();
+        });
+
+    fSerialParser::AddCommand("reset", []() {
+        LittleFS.remove("/fGMS_ModuleData.json");
+        ESP.restart();
+        });
 
     /*fSerialParser::AddCommand("query", []() {
         Serial.println("[fGMS Main] Sending query...");

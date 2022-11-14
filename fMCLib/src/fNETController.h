@@ -141,13 +141,13 @@ public:
                 if (err) {
 
                     if (isOnline) {
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( transmission error )");
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Error: " + String(err));
+                        //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( transmission error )");
+                        //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Error: " + String(err));
                     }
 
                     if (errcount > 3) {
                         if (isOnline)
-                            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed!");
+                            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed! ( transmission error )");
 
                         if (error != nullptr)
                             *error = -1;
@@ -182,7 +182,7 @@ public:
                 Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received: " + read);
 
                 if (errcount > 3) {
-                    Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed!");
+                    Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed! ( resend )");
 
                     if (error != nullptr)
                         *error = -2;
@@ -207,7 +207,7 @@ public:
 
             String toSend = SendBuffer.first();
 
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Sending: " + toSend);
+            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Sending: " + toSend);
 
             fNETMessage msg = fNETMessage(toSend, 0);
             //Serial.println("Converted to msg.");
@@ -307,12 +307,12 @@ public:
             if (msg_data != "") {
                 OnReceiveMsg(msg_data);
 
-                Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message transport took: " + String(millis() - sms) + "ms.");
+                //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message transport took: " + String(millis() - sms) + "ms.");
             }
         }
 
         void OnReceiveMsg(String msg) {
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received message data:\n" + msg);
+            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received message data:\n" + msg);
 
             if (msg.substring(0, 4) == "JSON")
                 OnReceiveJSON(msg.substring(4));
@@ -327,8 +327,6 @@ public:
 
             if (d["tag"] == "config")
                 OnReceiveConfig(d["data"]);
-            else if (d["recipient"] != "controller")
-                Connection->Send(d); // Forward message
             else
                 Connection->OnReceiveMessageService(d);
         }
@@ -382,10 +380,12 @@ public:
         Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
         ReadConfig();
+        Serial.println("[fGMS] Loading modules...");
 
+        LoadModules();
+
+        Serial.println("[fGMS] Setup I2C...");
         SetupI2C();
-
-        Serial.println("[fGMS] I2C OK.");
 
         Connection->AddQueryResponder("getAllCurrentModuleData", [](DynamicJsonDocument) {
             DynamicJsonDocument r(1024);
@@ -398,9 +398,6 @@ public:
             return r;
             });
 
-        Serial.println("[fGMS] Loading modules...");
-
-        LoadModules();
 
         Serial.println("[fGMS] Done.");
 
@@ -556,6 +553,7 @@ private:
         Serial.println("[fGMS fNET Controller] Beginnig I2Cs as master");
 
         I2C1.begin(fNET_SDA, fNET_SCK, (uint32_t)800000);
+        I2C_ScanModules(&I2C1);
         //I2C2.begin(fGMS_SDA2, fGMS_SCK2, (uint32_t)800000);
 
         xTaskCreate(I2CTask, "fGMS_fNETTask", 10000, nullptr, 0, nullptr);
@@ -567,7 +565,7 @@ private:
         while (true) {
             I2C_PollModules();
 
-            if (millis() - I2C_LastScanMs > 1000)
+            if (millis() - I2C_LastScanMs > 10000)
                 I2C_ScanModules(&I2C1);
 
             delay(100);

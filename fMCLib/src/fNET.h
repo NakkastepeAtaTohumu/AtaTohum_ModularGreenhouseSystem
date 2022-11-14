@@ -50,13 +50,14 @@ public:
                 //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] check returned data:" + String(i));
                 //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] data:" + r["tag"]);
 
-                if ((*r)["tag"] == "queryResult" && (*r)["queryID"] == sentQueryID) {
+                if ((*r)["tag"] == "queryResult" && (*r)["queryID"] == sentQueryID && (*r)["recipient"] == mac) {
                     Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Received query return.");
                     return new JsonObject((*r)["queryResult"].as<JsonObject>());
                 }
             }
         }
 
+        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Query failed!");
         return nullptr;
     }
 
@@ -76,10 +77,18 @@ public:
     }
 
     void OnReceiveMessageService(DynamicJsonDocument d) {
+        String s;
+        serializeJsonPretty(d, s);
+
+        Serial.println("[fNET] Received message from " + d["source"].as<String>() + ": " + s);
+
         if (d["tag"] == "query")
             ProcessQuery(d);
-
-        if (MessageReceived != nullptr)
+        else if (d["recipient"] != "controller") {
+            Serial.println("[fNET] Forwarding message from " + d["source"].as<String>() + " to " + d["recipient"].as<String>());
+            Send(d); // Forward message
+        }
+        else if (MessageReceived != nullptr)
             MessageReceived(d);
 
         ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));

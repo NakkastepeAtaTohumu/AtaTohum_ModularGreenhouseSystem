@@ -16,7 +16,7 @@
 #include "fNETMessages.h"
 #include "fNET.h"
 
-#define fGMS_ModuleTimeoutMS 500
+#define fGMS_ModuleTimeoutMS 2500
 
 enum fNETModuleState {
     CONNECTED_WORKING = 10,
@@ -139,14 +139,14 @@ private:
             break;
 
         case CONNECTED_WORKING:
-            digitalWrite(fNET_PIN_INDICATOR_G, HIGH);
+            digitalWrite(fNET_PIN_INDICATOR_G, blink);
             digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
             digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
             break;
 
         case CONNECTED_IDLE:
-            digitalWrite(fNET_PIN_INDICATOR_G, blink);
+            digitalWrite(fNET_PIN_INDICATOR_G, HIGH);
             digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
             digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
 
@@ -314,7 +314,8 @@ private:
         //if (d["source"] != "controller")
         //    return;
 
-        if (d["command"].as<String>() != "") {
+        if (d.containsKey("command")) {
+            //Serial.println("Received command.");
             if (d["command"] == "getConfig")
                 I2C_SendConfig();
             else if (d["command"] == "setI2CAddr")
@@ -487,7 +488,7 @@ private:
         delete I2C_MessageFromMaster;
         I2C_MessageFromMaster = new fNETMessage();
 
-        Serial.println("[fGMS fNET] Master message received: " + received);
+        //Serial.println("[fGMS fNET] Master message received: " + received);
 
         if (received.substring(0, 4) == "JSON")
             I2C_OnReceiveJSON(received.substring(4));
