@@ -14,7 +14,7 @@
 	#include "WProgram.h"
 #endif
 
-#include "fGMSModule.h"
+#include "fNETModule.h"
 #include "fGMSController.h"
 
 #endif

@@ -11,7 +11,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSModule.cpp">
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETModule.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSStringFuctions.cpp">
@@ -26,6 +26,9 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSMessages.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNET.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="$(MSBuildThisFileDirectory)readme.txt" />
@@ -38,7 +41,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSLogs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSModule.h">
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSStringFunctions.h">
@@ -48,6 +51,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSMessages.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNET.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,14 +1,14 @@
 #include "fGMSController.h"
 
-DynamicJsonDocument fGMSController::data(1024);
+DynamicJsonDocument fNETController::data(1024);
 
-TwoWire fGMSController::I2C1(0);
-TwoWire fGMSController::I2C2(1);
+TwoWire fNETController::I2C1(0);
+TwoWire fNETController::I2C2(1);
 
-fGMSController::fGMSModuleData* fGMSController::Modules[32];
-int fGMSController::ModuleCount;
+fNETController::fNETSlaveConnection* fNETController::Modules[32];
+int fNETController::ModuleCount;
 
-long fGMSController::I2C_LastScanMs;
+long fNETController::I2C_LastScanMs;
 
-fGMSQueryResponder* fGMSController::Responders[32];
-int fGMSController::ResponderNum;
+fGMSQueryResponder* fNETController::Responders[32];
+int fNETController::ResponderNum;

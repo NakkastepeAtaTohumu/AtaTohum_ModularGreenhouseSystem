@@ -23,14 +23,16 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSController.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSLib.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSMessages.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSModule.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNETModule.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)src\fGMSStringFuctions.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fNET.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSController.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSLogs.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSMessages.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSModule.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETModule.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fGMSStringFunctions.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNET.h" />
   </ItemGroup>
 </Project>

@@ -15,9 +15,9 @@
 #include "fGMSMessages.h"
 #include "fGMSLib.h"
 
-class fGMSController {
+class fNETController {
 public:
-    class fGMSModuleData {
+    class fNETSlaveConnection {
     public:
         String MAC_Address = "00:00:00:00:00:00";
         uint8_t i2c_address = -1;
@@ -26,14 +26,14 @@ public:
         bool isOnline = false;
         bool awaitingConfiguration = true;
 
-        fGMSModuleData(uint8_t address, int port) : Config(1024) {
+        fNETSlaveConnection(uint8_t address, int port) : Config(1024) {
             i2c_address = address;
             i2c_port = port;
 
             RequestConfig();
         }
 
-        fGMSModuleData(String mac, uint8_t address, int port) : Config(1024) {
+        fNETSlaveConnection(String mac, uint8_t address, int port) : Config(1024) {
             MAC_Address = mac;
             i2c_address = address;
             i2c_port = port;
@@ -41,7 +41,7 @@ public:
             RequestConfig();
         }
 
-        fGMSModuleData(String mac_address) : Config(1024) {
+        fNETSlaveConnection(String mac_address) : Config(1024) {
             i2c_address = -1;
             MAC_Address = mac_address;
 
@@ -50,7 +50,7 @@ public:
             RequestConfig();
         }
 
-        fGMSModuleData() : Config(1024) {
+        fNETSlaveConnection() : Config(1024) {
         }
 
         void RequestConfig() {
@@ -178,7 +178,7 @@ public:
                 if (err) {
 
                     if (isOnline) {
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( transmission error)");
+                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( transmission error )");
                         Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Error: " + String(err));
                     }
 
@@ -246,7 +246,7 @@ public:
 
             Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Sending: " + toSend);
 
-            fGMS_I2CMessage msg = fGMS_I2CMessage(toSend, 0);
+            fNETMessage msg = fNETMessage(toSend, 0);
             //Serial.println("Converted to msg.");
 
             String data = PaddedInt(msg.packetCount, 4) + PaddedInt(msg.messageID, 8);
@@ -367,7 +367,7 @@ public:
             else if (d["tag"] == "query")
                 ProcessQuery(d);
             else if (d["recipient"] != "controller")
-                fGMSController::SendMessageTo(d["recipient"], msg); // Forward message
+                SendMessageTo(d["recipient"], msg); // Forward message
 
             ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
         }
@@ -488,7 +488,7 @@ public:
         Serial.println("[fGMS Controller] Send msg to: " + mac);
         Serial.println("[fGMS Controller] Msg data: " + msg);
 
-        fGMSModuleData* d = GetModuleByMAC(mac);
+        fNETSlaveConnection* d = GetModuleByMAC(mac);
 
         if(d == nullptr)
             Serial.println("[fGMS Controller] No module with the specified MAC address found.");
@@ -497,20 +497,20 @@ public:
     }
 
     static void SendJSONTo(String mac, DynamicJsonDocument data) {
+        Serial.println("[fGMS Controller] Send msg to: " + mac);
+
         DynamicJsonDocument m(data);
+        fNETSlaveConnection* d = GetModuleByMAC(mac);
 
-        m["recipient"] = mac;
-        m["source"] = "controller";
+        if (d == nullptr)
+            Serial.println("[fGMS Controller] No module with the specified MAC address found.");
 
-        String msg;
-        serializeJson(m, msg);
-        
-        SendMessageTo(mac, "JSON" + msg);
+        d->QueueMessage(m);
     }
 
-    static fGMSModuleData* GetModuleByMAC(String mac) {
+    static fNETSlaveConnection* GetModuleByMAC(String mac) {
         for (int i = 0; i < ModuleCount; i++) {
-            fGMSModuleData* d = Modules[i];
+            fNETSlaveConnection* d = Modules[i];
 
             if (d->MAC_Address == mac)
                 return d;
@@ -523,7 +523,7 @@ public:
         ResponderNum++;
     }
 
-    static fGMSModuleData* Modules[32];
+    static fNETSlaveConnection* Modules[32];
     static int ModuleCount;
 
 private:
@@ -603,7 +603,7 @@ private:
         JsonArray modulesArray = data.createNestedArray("modules");
 
         for (int i = 0; i < ModuleCount; i++) {
-            fGMSModuleData* mod = Modules[i];
+            fNETSlaveConnection* mod = Modules[i];
             Serial.println("[fGMS Controller] Saving module " + String(mod->MAC_Address));
 
             JsonObject object = modulesArray.createNestedObject();
@@ -626,7 +626,7 @@ private:
 
             Serial.println("[fGMS Controller] Loaded module " + String(mac));
 
-            fGMSModuleData* d = new fGMSModuleData(mac, -1, 0);
+            fNETSlaveConnection* d = new fNETSlaveConnection(mac, -1, 0);
             d->Config = config_o;
 
             Modules[ModuleCount] = d;
@@ -667,7 +667,7 @@ private:
     static void AddNewModule(String mac) {
         Serial.println("[fGMS Controller] Add new module: " + mac);
 
-        fGMSModuleData* dat = new fGMSModuleData(mac);
+        fNETSlaveConnection* dat = new fNETSlaveConnection(mac);
         //dat->SetI2CAddr(I2C_GetEmptyAddr(0));
 
         Modules[ModuleCount] = dat;
@@ -696,7 +696,7 @@ private:
 
         //Serial.println("[fGMS fNET] Address present.");
 
-        fGMSModuleData* m = new fGMSModuleData(addr, 0);
+        fNETSlaveConnection* m = new fNETSlaveConnection(addr, 0);
 
         String mac = m->GetMacAddress(wire);
         m->GetMacAddress(wire); //increment trnum
@@ -753,7 +753,7 @@ private:
         //Serial.println(mac);
 
         if (mac != "") {
-            fGMSModuleData* d = GetModuleByMAC(mac);
+            fNETSlaveConnection* d = GetModuleByMAC(mac);
 
             if (d != nullptr) {
                 Serial.println("[fGMS fNET] Found module " + mac + " at address 0x01");

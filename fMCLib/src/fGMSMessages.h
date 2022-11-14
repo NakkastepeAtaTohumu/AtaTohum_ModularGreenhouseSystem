@@ -46,17 +46,17 @@ struct fGMS_I2CPacket {
     }
 };
 
-struct fGMS_I2CMessage {
+struct fNETMessage {
     String data;
     int messageID;
     fGMS_I2CPacket packets[32];
     int packetCount;
 
-    fGMS_I2CMessage() {
+    fNETMessage() {
 
     }
 
-    fGMS_I2CMessage(String d, int msgID) {
+    fNETMessage(String d, int msgID) {
         //Serial.println("Convert to msg: " + d);
         data = String(d);
         messageID = msgID;
@@ -78,18 +78,6 @@ struct fGMS_I2CMessage {
         packets[packet_id] = fGMS_I2CPacket(data, packet_id, msgID);
 
         packetCount = packet_id + 1;
-    }
-};
-
-class fGMSQueryResponder {
-public:
-    DynamicJsonDocument(*Response)(DynamicJsonDocument);
-    String queryType;
-
-
-    fGMSQueryResponder(String query, DynamicJsonDocument(*response)(DynamicJsonDocument)) {
-        queryType = query;
-        Response = response;
     }
 };
 

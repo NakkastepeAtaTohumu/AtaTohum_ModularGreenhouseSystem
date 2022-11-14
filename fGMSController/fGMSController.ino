@@ -1,16 +1,16 @@
 #define I2C_BUFFER_LENGTH 4096
 
 #include "fGMSLib.h"
-#include "fSerialParser.h"
+//#include "fSerialParser.h"
 #include <Wire.h>
 
-//fGMSModuleData* d = new fGMSModuleData((uint8_t)0x01, (int)0);
+//fNETSlaveConnection* d = new fNETSlaveConnection((uint8_t)0x01, (int)0);
 
 void setup() {
-    fSerialParser::BeginAsTask(115200);
-    //Serial.begin(115200);
+    //fSerialParser::BeginAsTask(115200);
+    Serial.begin(115200);
 
-    fGMSController::Init();
+    fNETController::Init();
 
     pinMode(2, OUTPUT);
 
@@ -21,6 +21,7 @@ void setup() {
     //Wire.begin(25, 26, (uint32_t)800000);
     //Serial.println(d->Transaction(&Wire, "GETMAC"));
 
+    /*
     fSerialParser::AddCommand("save", []() {
         fGMSController::Save();
         });
@@ -42,9 +43,9 @@ void setup() {
         }
         else
             Serial.println("[fGMS Main] Query failed!");
-        });
+        });*/
 
-    fGMSController::AddQueryResponder("test_responder", [](DynamicJsonDocument) {
+    fNETController::AddQueryResponder("test_responder", [](DynamicJsonDocument) {
         DynamicJsonDocument d(128);
         d["test"] = "1234";
 

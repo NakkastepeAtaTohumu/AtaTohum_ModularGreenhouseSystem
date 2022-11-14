@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef fGMSModule_h
-#define fGMSModule_h
+#ifndef fNETModule_h
+#define fNETModule_h
 
 //#define I2C_BUFFER_LENGTH 4096
 
@@ -17,7 +17,7 @@
 
 #define fGMS_ModuleTimeoutMS 500
 
-enum fGMSModuleState {
+enum fNETModuleState {
     CONNECTED_WORKING = 10,
     CONNECTED_IDLE = 9,
     CONNECTED_ERR = 8,
@@ -27,7 +27,7 @@ enum fGMSModuleState {
     FATAL_ERROR = -3
 };
 
-class fGMSModule {
+class fNETModule {
 public:
     static void Init() {
         Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
@@ -122,7 +122,7 @@ public:
         ResponderNum++;
     }
 
-    static fGMSModuleState State;
+    static fNETModuleState State;
 
 private:
     static TwoWire I2C;
@@ -222,14 +222,14 @@ private:
         bool mounted = LittleFS.begin();
 
         if (!mounted) {
-            xTaskCreate(err_LittleFSMountError, "fgms_err_mount", 1024, nullptr, 0, nullptr);
+            xTaskCreate(err_LittleFSMountError, "fgms_err_mount", 4096, nullptr, 0, nullptr);
             return;
         }
 
         File data_file = LittleFS.open("/fGMS_ModuleData.json", "r");
 
         if (!data_file) {
-            xTaskCreate(err_DataFileNotFound, "fgms_err_config", 1024, nullptr, 0, nullptr);
+            xTaskCreate(err_DataFileNotFound, "fgms_err_config", 4096, nullptr, 0, nullptr);
             return;
         }
 
@@ -308,11 +308,11 @@ private:
     static CircularBuffer<String, 100> I2C_SendBuffer;
     static String I2C_ToSend;
 
-    static fGMS_I2CMessage* I2C_CurrentMessage;
+    static fNETMessage* I2C_CurrentMessage;
     static int I2C_LastMsgID;
 
 
-    static fGMS_I2CMessage* I2C_MessageFromMaster;
+    static fNETMessage* I2C_MessageFromMaster;
 
     static void SetupI2C() {
         if (I2C_Address < 0x01) {
@@ -347,7 +347,7 @@ private:
         //Serial.println("[fGMS I2C] Send data: " + data);
 
         delete I2C_CurrentMessage;
-        I2C_CurrentMessage = new fGMS_I2CMessage(data, I2C_LastMsgID);
+        I2C_CurrentMessage = new fNETMessage(data, I2C_LastMsgID);
         I2C_LastMsgID++;
     }
 
@@ -511,7 +511,7 @@ private:
             int msgid = ParsePaddedInt(data.substring(4, 12));
 
             delete I2C_MessageFromMaster;
-            I2C_MessageFromMaster = new fGMS_I2CMessage();
+            I2C_MessageFromMaster = new fNETMessage();
 
             I2C_MessageFromMaster->packetCount = pktcount;
             I2C_MessageFromMaster->messageID = msgid;
@@ -525,7 +525,7 @@ private:
 
             if (msgid != I2C_MessageFromMaster->messageID)
             {
-                I2C_MessageFromMaster = new fGMS_I2CMessage();
+                I2C_MessageFromMaster = new fNETMessage();
                 Serial.println("[fGMS fNET] Message receive error ( msg id mismatch )");
                 return;
             }
@@ -569,7 +569,7 @@ private:
             received += I2C_MessageFromMaster->packets[i].content;
 
         delete I2C_MessageFromMaster;
-        I2C_MessageFromMaster = new fGMS_I2CMessage();
+        I2C_MessageFromMaster = new fNETMessage();
 
         Serial.println("[fGMS fNET] Master message received: " + received);
 
