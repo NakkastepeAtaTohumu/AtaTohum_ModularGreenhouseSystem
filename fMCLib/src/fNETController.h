@@ -48,6 +48,7 @@ public:
         }
 
         fNETSlaveConnection() : Config(1024) {
+            valid = false;
             isOnline = false;
         }
 
@@ -104,7 +105,29 @@ public:
             return Transaction(wire, "GETMAC").substring(0, 17);
         }
 
+        void Remove() {
+            int index = GetModuleIndex(this);
+
+            Serial.println("Removing " + String(index));
+
+            for (int i = index; i < ModuleCount - 1; i++) {
+                Serial.println("Shift " + String(i));
+                Modules[i] = Modules[i + 1];
+            }
+
+            Modules[ModuleCount] = nullptr;
+            ModuleCount--;
+
+            valid = false;
+        }
+
+        int QueuedMessageCount() {
+            return SendBuffer.size();
+        }
+
         DynamicJsonDocument Config;
+
+        bool valid = true;
     private:
         CircularBuffer<String, 100> SendBuffer;
 
@@ -333,9 +356,19 @@ public:
 
         void OnReceiveConfig(String d) {
             Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received config.");
-            deserializeJson(Config, d);
 
-            MAC_Address = Config["macAddress"].as<String>();
+            String c_str;
+            serializeJson(Config, c_str);
+
+            if (c_str != d)
+            {
+                Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Save new config");
+                deserializeJson(Config, d);
+
+                MAC_Address = Config["macAddress"].as<String>();
+
+                Save();
+            }
 
             awaitingConfiguration = false;
         }
@@ -375,16 +408,20 @@ public:
     };
 
     static fNETConnection* Init() {
+        status_d = "init";
         Connection = new fNETConnection("controller", &msghandler);
 
         Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
+        status_d = "read_cfg";
         ReadConfig();
         Serial.println("[fGMS] Loading modules...");
 
+        status_d = "load_mdl";
         LoadModules();
 
         Serial.println("[fGMS] Setup I2C...");
+        status_d = "setup_i2c";
         SetupI2C();
 
         Connection->AddQueryResponder("getAllCurrentModuleData", [](DynamicJsonDocument) {
@@ -402,6 +439,7 @@ public:
         Serial.println("[fGMS] Done.");
 
         Connection->IsConnected = true;
+        status_d = "ok";
         return Connection;
     }
 
@@ -436,9 +474,21 @@ public:
         return nullptr;
     }
 
+    static int GetModuleIndex(fNETSlaveConnection* c) {
+        for (int i = 0; i < ModuleCount; i++) {
+            if (Modules[i] == c) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     static fNETSlaveConnection* Modules[32];
     static int ModuleCount;
     static fNETConnection* Connection;
+
+    static String status_d;
 
 private:
     static void ReadConfig() {
@@ -458,6 +508,8 @@ private:
     }
 
     static void err_LittleFSMountError() {
+        status_d = "mount_fail";
+
         Serial.println("[fGMS LittleFS] LittleFS Mount error!");
         Serial.println("[fGMS LittleFS] Attempt flash? (y/n)");
 
@@ -489,6 +541,8 @@ private:
     }
 
     static void err_DataFileNotFound() {
+        status_d = "cfg_err";
+
         Serial.println("[fGMS] No data found!");
         Serial.println("[fGMS] Reset system config?");
 

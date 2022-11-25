@@ -42,6 +42,10 @@ public:
 
         Connection = new fNETConnection(WiFi.macAddress(), &I2C_Queue);
 
+        Connection->AddQueryResponder("getConfig", [](DynamicJsonDocument d) {
+            return data;
+            });
+
         return Connection;
     }
 
@@ -495,7 +499,7 @@ private:
         if (received.substring(0, 4) == "JSON")
             I2C_OnReceiveJSON(received.substring(4));
 
-        vTaskDelete(xTaskGetCurrentTaskHandle());
+        vTaskDelete(NULL);
         delay(0);
     }
 
@@ -522,7 +526,7 @@ private:
 
         I2C_BufferMessage(I2C_SendBuffer.shift());
 
-        vTaskDelete(xTaskGetCurrentTaskHandle());
+        vTaskDelete(NULL);
         delay(1000);
     }
 

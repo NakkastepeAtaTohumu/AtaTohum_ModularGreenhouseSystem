@@ -10,4 +10,6 @@ int fNETController::ModuleCount;
 
 long fNETController::I2C_LastScanMs;
 
+String fNETController::status_d = "TEST ABCDE";
+
 fNETConnection* fNETController::Connection;

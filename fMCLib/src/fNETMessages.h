@@ -19,7 +19,7 @@
 
 #define fNET_PIN_INDICATOR_G 27
 #define fNET_PIN_INDICATOR_Y 33
-#define fNET_PIN_INDICATOR_R 32
+#define fNET_PIN_INDICATOR_R 14
 
 #endif
 

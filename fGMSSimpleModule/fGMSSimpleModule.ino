@@ -1,3 +1,7 @@
+#include <ESP32Tone.h>
+#include <ESP32Servo.h>
+#include <ESP32PWM.h>
+#include <analogWrite.h>
 #include "fNETLib.h"
 #include "fSerialParser.h"
 
