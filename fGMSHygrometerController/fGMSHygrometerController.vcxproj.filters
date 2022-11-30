@@ -15,31 +15,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fGMSController.ino" />
+    <None Include="fGMSHygrometerController.ino" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="__vm\.fGMSController.vsarduino.h">
+    <ClInclude Include="__vm\.fGMSHygrometerController.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fGMSControllerGUI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="fGMS.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="fGMSDeviceDriver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="fGMSControllerGUI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="fGMS.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="fGMSDeviceDriver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

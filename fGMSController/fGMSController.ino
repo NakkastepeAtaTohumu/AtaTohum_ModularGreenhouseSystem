@@ -1,7 +1,10 @@
-#define I2C_BUFFER_LENGTH 4096
+#define I2C_BUFFER_LENGTH 128
 
-//#include <Wire.h>
-//#include "fNETLib.h"
+#include <SPI.h>
+#include <Wire.h>
+#include <WiFi.h>
+#include "fNETLib.h"
+#include "fGUILib.h"
 
 #include <ESP32Encoder.h>
 #include "fGMSControllerGUI.h"
@@ -20,13 +23,6 @@ void setup() {
     delay(250);
     digitalWrite(2, LOW);
 
-    //DynamicJsonDocument d(256);
-
-    //d["recipient"] = "34:86:5D:FB:F4:E8";
-    //d["tag"] = "test from controller";
-
-    //c->Send(d);
-
     //Wire.begin(25, 26, (uint32_t)800000);
     //Serial.println(d->Transaction(&Wire, "GETMAC"));
     /*
@@ -41,9 +37,22 @@ void setup() {
 
     fGMSControllerMenu::Init();
     fNETConnection* c = fNETController::Init();
+
+    JsonObject* r = c->Query("C8:F0:9E:9E:70:38", "getValues");
+
+    DynamicJsonDocument d(256);
+    d["interval"] = 1000;
+    c->Query("C8:F0:9E:9E:70:38", "setValueInterval", &d);
+
+    if (r != nullptr) {
+        String f;
+        serializeJsonPretty(*r, f);
+
+        Serial.println("Query return:\n"+ f);
+    }
 }
 
 void loop() {
-    //Serial.println("Free heap: " + String(ESP.getFreeHeap()));
-    delay(100);
+    vTaskDelete(NULL); //loop() is unused
+    delay(0);
 }

@@ -113,6 +113,6 @@ typedef long pthread_cond_t;
 #define READ_PERI_REG(addr)
 // Write Value to Register
 #define WRITE_PERI_REG(addr,val)
-#include "fGMSSimpleModule.ino"
+#include "fGMSHygrometerController.ino"
 #endif
 #endif

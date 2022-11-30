@@ -20,9 +20,8 @@ public:
 
 class fNETConnection {
 public:
-    fNETConnection(String my_mac, void(*send_message)(String, String)) {
+    fNETConnection(String my_mac) {
         mac = my_mac;
-        queue_msg = send_message;
     }
 
     void AddQueryResponder(String query, DynamicJsonDocument(*Response)(DynamicJsonDocument)) {
@@ -30,14 +29,24 @@ public:
         ResponderNum++;
     }
 
-    JsonObject* Query(DynamicJsonDocument q, String mac) {
-        int sentQueryID = LastQueryID++;
+    JsonObject* Query(String mac, String query) {
+        return Query(mac, query, nullptr);
+    }
 
-        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
+    JsonObject* Query(String macToQuery, String query, DynamicJsonDocument* qd) {
+        if (qd == nullptr)
+            qd = new DynamicJsonDocument(256);
+
+        DynamicJsonDocument q = *qd;
+
+        int sentQueryID = LastQueryID++;
 
         q["queryID"] = sentQueryID;
         q["tag"] = "query";
-        q["recipient"] = mac;
+        q["recipient"] = macToQuery;
+        q["query"] = query;
+
+        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
 
         Send(q);
 
@@ -47,10 +56,7 @@ public:
 
             for (int i = 0; i < ReceivedJSONBuffer.size(); i++) {
                 DynamicJsonDocument* r = ReceivedJSONBuffer[i];
-                //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] check returned data:" + String(i));
-                //Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] data:" + r["tag"]);
-
-                if ((*r)["tag"] == "queryResult" && (*r)["queryID"] == sentQueryID && (*r)["recipient"] == mac) {
+                if ((*r)["tag"] == "queryResult" && (*r)["queryID"].as<int>() == sentQueryID && (*r)["recipient"].as<String>() == mac) {
                     Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Received query return.");
                     return new JsonObject((*r)["queryResult"].as<JsonObject>());
                 }
@@ -73,14 +79,29 @@ public:
         String str;
         serializeJson(d, str);
 
-        queue_msg("JSON" + str, d["recipient"]);
+        QueueMessage("JSON" + str, d["recipient"]);
+    }
+
+    void(*MessageReceived)(DynamicJsonDocument) = nullptr;
+
+    bool IsConnected = false;
+
+    virtual int GetQueuedMessageCount() {
+
+    }
+
+protected:
+    virtual void QueueMessage(String d, String r) {
+
     }
 
     void OnReceiveMessageService(DynamicJsonDocument d) {
-        String s;
-        serializeJsonPretty(d, s);
+        if (d["auto"].as<bool>() != true) {
+            String s;
+            serializeJsonPretty(d, s);
 
-        Serial.println("[fNET] Received message from " + d["source"].as<String>() + ": " + s);
+            Serial.println("[fNET] Received message from " + d["source"].as<String>() + ": " + s);
+        }
 
         if (d["tag"] == "query")
             ProcessQuery(d);
@@ -94,9 +115,6 @@ public:
         ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
     }
 
-    void(*MessageReceived)(DynamicJsonDocument) = nullptr;
-
-    bool IsConnected = false;
 private:
     void ProcessQuery(DynamicJsonDocument q) {
         DynamicJsonDocument r(4096);
@@ -115,6 +133,7 @@ private:
         send["query"] = q["query"];
         send["queryID"] = q["queryID"];
         send["queryResult"] = r;
+        send["auto"] = true;
 
         String s_str;
         serializeJson(send, s_str);
@@ -139,7 +158,5 @@ private:
     int ResponderNum = 0;
 
     String mac = "";
-
-    void(*queue_msg)(String, String);
 };
 #endif

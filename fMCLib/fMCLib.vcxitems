@@ -4,7 +4,7 @@
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
     <ItemsProjectGuid>{4365d99f-d2a9-4030-83cf-ff367240ce31}</ItemsProjectGuid>
-    <ItemsProjectName>fGMSLib</ItemsProjectName>
+    <ItemsProjectName>fNETLib</ItemsProjectName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

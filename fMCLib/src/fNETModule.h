@@ -16,7 +16,7 @@
 #include "fNETMessages.h"
 #include "fNET.h"
 
-#define fGMS_ModuleTimeoutMS 2500
+#define fNET_ModuleTimeoutMS 2500
 
 enum fNETModuleState {
     CONNECTED_WORKING = 10,
@@ -30,17 +30,36 @@ enum fNETModuleState {
 
 class fNETModule {
 public:
+    class ModuleConnection : public fNETConnection {
+    public:
+        ModuleConnection(String m) : fNETConnection(m) {
+
+        }
+
+        void QueueMessage(String d, String r) override {
+            I2C_Queue(d);
+        }
+
+        void OnReceiveMessage(DynamicJsonDocument d) {
+            fNETConnection::OnReceiveMessageService(d);
+        }
+
+        int GetQueuedMessageCount() override {
+            return I2C_SendBuffer.size();
+        }
+    };
+
     static fNETConnection* Init() {
-        Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
+        Serial.println("[fNET] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
         SetPins();
         ReadConfig();
 
         SetupI2C();
 
-        xTaskCreate(MainTask, "fGMS_MainTask", 8192, nullptr, 0, nullptr);
+        xTaskCreate(MainTask, "fNET_MainTask", 8192, nullptr, 0, nullptr);
 
-        Connection = new fNETConnection(WiFi.macAddress(), &I2C_Queue);
+        Connection = new ModuleConnection(WiFi.macAddress());
 
         Connection->AddQueryResponder("getConfig", [](DynamicJsonDocument d) {
             return data;
@@ -49,22 +68,36 @@ public:
         return Connection;
     }
 
-    static String ModuleType;
-
     static DynamicJsonDocument data;
 
     static void Save() {
-        Serial.println("[fGMS] Saving...");
+        Serial.println("[fNET] Saving...");
         String data_serialized;
 
         serializeJson(data, data_serialized);
 
         Serial.println("New serialized data: \n" + data_serialized);
 
-        File data_file = LittleFS.open("/fGMS_ModuleData.json", "w", true);
+        File data_file = LittleFS.open("/fNET_ModuleData.json", "w", true);
         data_file.print(data_serialized.c_str());
         data_file.close();
-        Serial.println("[fGMS] Saved.");
+        Serial.println("[fNET] Saved.");
+    }
+
+    static void SetErrorState() {
+        err = true;
+    }
+
+    static void SetFatalErrorState() {
+        fatal_err = true;
+    }
+
+    static int QueuedMessageCount() {
+        return I2C_SendBuffer.size();
+    }
+
+    static void SetName(String name) {
+        data["name"] = name;
     }
 
     static fNETModuleState State;
@@ -78,7 +111,7 @@ private:
 
     static bool err, fatal_err, working;
 
-    static fNETConnection* Connection;
+    static ModuleConnection* Connection;
 
     static void MainTask(void* param) {
         while (true) {
@@ -96,10 +129,27 @@ private:
 
         //pinMode(2, OUTPUT);
 
+        digitalWrite(fNET_PIN_INDICATOR_G, HIGH);
+        digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
         digitalWrite(fNET_PIN_INDICATOR_R, HIGH);
+
+        delay(250);
+
+        digitalWrite(fNET_PIN_INDICATOR_G, LOW);
+        digitalWrite(fNET_PIN_INDICATOR_Y, LOW);
+        digitalWrite(fNET_PIN_INDICATOR_R, LOW);
     }
 
     static void UpdateSignalState() {
+        if (!I2C_IsConnected && millis() - I2C_LastCommsMillis < 10000) {
+            long m = millis() % 1000;
+            digitalWrite(fNET_PIN_INDICATOR_G, (m < 250 && m > 000));
+            digitalWrite(fNET_PIN_INDICATOR_Y, (m < 500 && m > 250) || m > 750);
+            digitalWrite(fNET_PIN_INDICATOR_R, (m < 750 && m > 500));
+
+            return;
+        }
+
         bool blink = (millis() % 1000) < 500;
 
         if (I2C_IsConnected) {
@@ -173,7 +223,7 @@ private:
             return;
         }
 
-        File data_file = LittleFS.open("/fGMS_ModuleData.json", "r");
+        File data_file = LittleFS.open("/fNET_ModuleData.json", "r");
 
         if (!data_file) {
             xTaskCreate(err_DataFileNotFound, "fgms_err_config", 4096, nullptr, 0, nullptr);
@@ -182,14 +232,14 @@ private:
 
         String data_rawJson = data_file.readString();
         deserializeJson(data, data_rawJson);
-        Serial.println("[fGMS] Read config: " + data_rawJson);
+        Serial.println("[fNET] Read config: " + data_rawJson);
 
         I2C_Address = data["i2c_address"];
     }
 
     static void err_LittleFSMountError(void* param) {
-        Serial.println("[fGMS LittleFS] LittleFS Mount error!");
-        Serial.println("[fGMS LittleFS] Attempt flash? (y/n)");
+        Serial.println("[fNET LittleFS] LittleFS Mount error!");
+        Serial.println("[fNET LittleFS] Attempt flash? (y/n)");
 
         delay(100);
         fatal_err = true;
@@ -200,18 +250,18 @@ private:
         }
 
         if (Serial.readStringUntil('\n') != "y") {
-            Serial.println("[fGMS LittleFS] Flash cancelled.");
+            Serial.println("[fNET LittleFS] Flash cancelled.");
             delay(500);
             ESP.restart();
         }
 
-        Serial.println("[fGMS LittleFS] Attempting to flash LittleFS.");
-        Serial.println("[fGMS LittleFS] This should not take more than 30 seconds.");
+        Serial.println("[fNET LittleFS] Attempting to flash LittleFS.");
+        Serial.println("[fNET LittleFS] This should not take more than 30 seconds.");
 
         LittleFS.format();
 
-        Serial.println("[fGMS LittleFS] LittleFS reflash done.");
-        Serial.println("[fGMS LittleFS] Rebooting.");
+        Serial.println("[fNET LittleFS] LittleFS reflash done.");
+        Serial.println("[fNET LittleFS] Rebooting.");
 
         delay(5000);
 
@@ -219,8 +269,8 @@ private:
     }
 
     static void err_DataFileNotFound(void* param) {
-        Serial.println("[fGMS] No data found!");
-        Serial.println("[fGMS] Attempt reconfiguration?");
+        Serial.println("[fNET] No data found!");
+        Serial.println("[fNET] Attempt reconfiguration?");
 
         delay(100);
         Error();
@@ -230,7 +280,7 @@ private:
         }
 
         if (Serial.readStringUntil('\n') != "y") {
-            Serial.println("[fGMS] Reconfiguration cancelled.");
+            Serial.println("[fNET] Reconfiguration cancelled.");
             delay(500);
             ESP.restart();
         }
@@ -239,11 +289,10 @@ private:
     }
 
     static void Reconfigure() {
-        Serial.println("[fGMS] Reconfiguring...");
+        Serial.println("[fNET] Reconfiguring...");
 
         data = DynamicJsonDocument(1024);
-        data["ModuleType"] = ModuleType;
-        data["i2c_address"] = I2C_Address;
+        data["i2c_address"] = 0;
 
         Save();
     }
@@ -253,7 +302,7 @@ private:
         err = true;
     }
 
-    static unsigned long I2C_LastCommsMillis;
+    static long I2C_LastCommsMillis;
     static CircularBuffer<String, 100> I2C_SendBuffer;
     static String I2C_ToSend;
 
@@ -265,13 +314,21 @@ private:
 
     static void SetupI2C() {
         if (I2C_Address < 0x01) {
-            Serial.println("[fGMS fNET] No I2C Addres configured!");
-            Serial.println("[fGMS fNET] Requesting new one from master.");
+            Serial.println("[fNET fNET] No I2C Addres configured!");
+            Serial.println("[fNET fNET] Requesting new one from master.");
 
             I2C_Address = 0x01;
         }
 
-        Serial.println("[fGMS fNET] Beginnig I2C as slave with address: " + String(I2C_Address));
+        if (I2C_Address >= 128) {
+            Serial.println("[fNET fNET] I2C Addres invalid!");
+            Serial.println("[fNET fNET] Requesting new one from master.");
+
+            I2C_Address = 0x01;
+        }
+
+
+        Serial.println("[fNET fNET] Beginnig I2C as slave with address: " + String(I2C_Address));
 
         I2C.begin(I2C_Address, fNET_SDA, fNET_SCK, (uint32_t)800000);
 
@@ -281,17 +338,17 @@ private:
     }
 
     static void I2C_Queue(String msg) {
-        //Serial.println("[fGMS I2C] Queue data: " + msg);
+        //Serial.println("[fNET I2C] Queue data: " + msg);
         I2C_SendBuffer.push(msg);
     }
 
     static void I2C_Queue(String msg, String destMAC) {
-        //Serial.println("[fGMS I2C] Queue data: " + msg);
+        //Serial.println("[fNET I2C] Queue data: " + msg);
         I2C_SendBuffer.push(msg);
     }
 
     static void I2C_BufferMessage(String data) {
-        //Serial.println("[fGMS I2C] Send data: " + data);
+        //Serial.println("[fNET I2C] Send data: " + data);
 
         delete I2C_CurrentMessage;
         I2C_CurrentMessage = new fNETMessage(data, I2C_LastMsgID);
@@ -312,7 +369,7 @@ private:
     }
 
     static void I2C_OnReceiveJSON(String msg) {
-        
+
         DynamicJsonDocument d(1024);
 
         deserializeJson(d, msg);
@@ -328,7 +385,7 @@ private:
                 I2C_SetAddr(d["addr"].as<int>());
         }
         else {
-            Connection->OnReceiveMessageService(d);
+            Connection->OnReceiveMessage(d);
         }
     }
 
@@ -348,12 +405,12 @@ private:
     }
 
     static void I2C_SetAddr(uint8_t addr) {
-        Serial.println("[fGMS fNET] Set address: " + String(addr));
+        Serial.println("[fNET fNET] Set address: " + String(addr));
         data["i2c_address"] = addr;
 
         Save();
 
-        Serial.println("[fGMS fNET] Rebooting to apply changes.");
+        Serial.println("[fNET fNET] Rebooting to apply changes.");
         ESP.restart();
     }
 
@@ -367,15 +424,15 @@ private:
 
         String received = String(rc_buf);
 
-        //Serial.println("[fGMS I2C] Received data:" + received);
+        //Serial.println("[fNET I2C] Received data:" + received);
 
         String trnum_data = received.substring(0, 8);
         int trnum = ParsePaddedInt(trnum_data);
-        //Serial.println("[fGMS I2C] Received transaction num:" + String(trnum));
+        //Serial.println("[fNET I2C] Received transaction num:" + String(trnum));
         received = received.substring(8);
 
         if (trnum != I2C_TransactionNum) {
-            //Serial.println("[fGMS I2C] New transaction!");
+            //Serial.println("[fNET I2C] New transaction!");
             I2C_TransactionNum = trnum;
 
             String bytenum_data = received.substring(0, 4);
@@ -383,7 +440,7 @@ private:
 
             if (bytenum) {
                 String content = received.substring(4, bytenum + 4);
-                //Serial.println("[fGMS I2C] Transaction content: " + content);
+                //Serial.println("[fNET I2C] Transaction content: " + content);
 
                 I2C_ToSend = "";
 
@@ -392,7 +449,7 @@ private:
         }
 
         String toSend = PaddedInt(I2C_TransactionNum, 8) + PaddedInt(I2C_ToSend.length(), 4) + I2C_ToSend;
-        //Serial.println("[fGMS I2C] Reply: " + toSend);
+        //Serial.println("[fNET I2C] Reply: " + toSend);
         I2C.print(toSend);
     }
 
@@ -414,7 +471,7 @@ private:
             I2C_ToSend = toSend;
         }
         else if (cmd == "MSG") {
-            //xTaskCreate(I2C_NextMessageTask, "fGMS_I2C_NxtMsg", 10000, nullptr, 0, nullptr);
+            //xTaskCreate(I2C_NextMessageTask, "fNET_I2C_NxtMsg", 10000, nullptr, 0, nullptr);
             I2C_NextMessage();
         }
         else if (cmd == "SND") {
@@ -449,14 +506,14 @@ private:
             if (msgid != I2C_MessageFromMaster->messageID)
             {
                 I2C_MessageFromMaster = new fNETMessage();
-                Serial.println("[fGMS fNET] Message receive error ( msg id mismatch )");
+                Serial.println("[fNET fNET] Message receive error ( msg id mismatch )");
                 return;
             }
 
             if (pktid != I2C_MessageFromMaster_CurrentPacket)
             {
-                Serial.println("[fGMS fNET] Message receive error ( pkt id mismatch )");
-                Serial.println("[fGMS fNET] Expected packet: " + String(I2C_MessageFromMaster_CurrentPacket) + ", received: " + data);
+                Serial.println("[fNET fNET] Message receive error ( pkt id mismatch )");
+                Serial.println("[fNET fNET] Expected packet: " + String(I2C_MessageFromMaster_CurrentPacket) + ", received: " + data);
                 I2C_ToSend = "PKT" + PaddedInt(I2C_MessageFromMaster_CurrentPacket, 4);
                 return;
             }
@@ -470,8 +527,8 @@ private:
                     break;
                 }
             }
-            //Serial.println("[fGMS I2C] Received packet: " + pktData);
-            I2C_MessageFromMaster->packets[I2C_MessageFromMaster_CurrentPacket] = fGMS_I2CPacket(pktData, pktid, msgid);
+            //Serial.println("[fNET I2C] Received packet: " + pktData);
+            I2C_MessageFromMaster->packets[I2C_MessageFromMaster_CurrentPacket] = fNET_I2CPacket(pktData, pktid, msgid);
             I2C_MessageFromMaster_CurrentPacket++;
 
             if (I2C_MessageFromMaster_CurrentPacket >= I2C_MessageFromMaster->packetCount) {
@@ -494,7 +551,7 @@ private:
         delete I2C_MessageFromMaster;
         I2C_MessageFromMaster = new fNETMessage();
 
-        //Serial.println("[fGMS fNET] Master message received: " + received);
+        //Serial.println("[fNET fNET] Master message received: " + received);
 
         if (received.substring(0, 4) == "JSON")
             I2C_OnReceiveJSON(received.substring(4));
@@ -504,7 +561,7 @@ private:
     }
 
     static void I2C_NextMessage() {
-        //Serial.println("[fGMS I2C] Next message.");
+        //Serial.println("[fNET I2C] Next message.");
 
         if (I2C_SendBuffer.size() > 0) {
             String packetCountData = PaddedInt(ceil(((double)I2C_SendBuffer.first().length()) / 64.0), 4);
@@ -522,7 +579,7 @@ private:
     }
 
     static void I2C_NextMessageTask(void* param) {
-        //Serial.println("[fGMS I2C] Next message.");
+        //Serial.println("[fNET I2C] Next message.");
 
         I2C_BufferMessage(I2C_SendBuffer.shift());
 
@@ -535,17 +592,17 @@ private:
     static bool I2C_IsConnected;
 
     static void I2C_OnDisconnect() {
-        Serial.println("[fGMS fNet] Disconencted from controller!");
+        Serial.println("[fNET fNet] Disconencted from controller!");
         Connection->IsConnected = false;
     }
 
     static void I2C_OnReconnect() {
-        Serial.println("[fGMS fNet] Connected to controller!");
+        Serial.println("[fNET fNet] Connected to controller!");
         Connection->IsConnected = true;
     }
 
     static void I2C_CheckConnection() {
-        if (millis() - I2C_LastCommsMillis > fGMS_ModuleTimeoutMS) {
+        if (millis() - I2C_LastCommsMillis > fNET_ModuleTimeoutMS) {
             if (I2C_IsConnected) {
                 I2C_OnDisconnect();
                 I2C_IsConnected = false;

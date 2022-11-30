@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fGMSLib", "fMCLib\fMCLib.vcxitems", "{4365D99F-D2A9-4030-83CF-FF367240CE31}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fNETLib", "fMCLib\fMCLib.vcxitems", "{4365D99F-D2A9-4030-83CF-FF367240CE31}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Wire-2.0.0", "Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems", "{A5324A00-7AB9-49E6-A940-63F4778D34B1}"
 EndProject
@@ -33,8 +33,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "I2CTestConsole", "I2CTestCo
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ESP32_I2C_Slave-0.3.0", "Libraries\ESP32_I2C_Slave\0.3.0\ESP32_I2C_Slave\ESP32_I2C_Slave-0.3.0.vcxitems", "{07ECE8A4-C0BF-4C22-9D66-DF2236A71167}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "flib", "..\Armatron Base\flib\flib.vcxitems", "{CF3374C4-D664-4C71-89FE-1817CA12C954}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fGUI", "fGUI\fGUI.vcxitems", "{75E73181-F062-40D5-B487-7FC0AA6043F5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TFT_eSPI-2.4.72", "Libraries\TFT_eSPI\2.4.72\TFT_eSPI\TFT_eSPI-2.4.72.vcxitems", "{9E3C4939-DE1F-4517-AB5B-2B4D941138C9}"
@@ -42,6 +40,12 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Encoder-1.4.2", "Libraries\Encoder\1.4.2\Encoder\Encoder-1.4.2.vcxitems", "{6B218C45-1454-4DEF-838C-778C48241479}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ESP32Encoder-0.9.1", "Libraries\ESP32Encoder\0.9.1\ESP32Encoder\ESP32Encoder-0.9.1.vcxitems", "{4EA753B4-2797-44B2-A9E0-6F0DD2F4A311}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fGMSHygrometerController", "fGMSHygrometerController\fGMSHygrometerController.vcxproj", "{5E71D505-8F00-4C26-AE82-33BA12859D11}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Adafruit_ADS1X15-2.4.0", "Libraries\Adafruit_ADS1X15\2.4.0\Adafruit_ADS1X15\Adafruit_ADS1X15-2.4.0.vcxitems", "{635DC999-4A50-420D-B471-50FE7588F2DE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SPI-2.0.0", "Libraries\SPI\2.0.0\SPI\SPI-2.0.0.vcxitems", "{968EA682-1816-414D-AB4D-B1E92873A3F7}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -54,6 +58,7 @@ Global
 		Libraries\ESP32Encoder\0.9.1\ESP32Encoder\ESP32Encoder-0.9.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\SPI\2.0.0\SPI\SPI-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\TFT_eSPI\2.4.72\TFT_eSPI\TFT_eSPI-2.4.72.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\UUID\0.1.3\UUID\UUID-0.1.3.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\Vector\1.2.1\Vector\Vector-1.2.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
@@ -62,16 +67,24 @@ Global
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{46b3ca32-9289-4bdc-acec-d88f2d747ab1}*SharedItemsImports = 9
 		Libraries\UUID\0.1.3\UUID\UUID-0.1.3.vcxitems*{4e0d64a9-662f-4d3c-92a3-3629a2a9849e}*SharedItemsImports = 9
 		Libraries\ESP32Encoder\0.9.1\ESP32Encoder\ESP32Encoder-0.9.1.vcxitems*{4ea753b4-2797-44b2-a9e0-6f0dd2f4a311}*SharedItemsImports = 9
+		fMCLib\fMCLib.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\Adafruit_ADS1X15\2.4.0\Adafruit_ADS1X15\Adafruit_ADS1X15-2.4.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
+		Libraries\Adafruit_ADS1X15\2.4.0\Adafruit_ADS1X15\Adafruit_ADS1X15-2.4.0.vcxitems*{635dc999-4a50-420d-b471-50fe7588f2de}*SharedItemsImports = 9
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{680c508a-349d-48e7-aa16-fe98d493c1e1}*SharedItemsImports = 9
 		Libraries\Encoder\1.4.2\Encoder\Encoder-1.4.2.vcxitems*{6b218c45-1454-4def-838c-778c48241479}*SharedItemsImports = 9
 		fGUI\fGUI.vcxitems*{75e73181-f062-40d5-b487-7fc0aa6043f5}*SharedItemsImports = 9
 		Libraries\Dictionary\3.3.0\Dictionary\Dictionary-3.3.0.vcxitems*{82c9cb43-a1d1-414a-9820-8d4b3059af4f}*SharedItemsImports = 9
 		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{8ad53c0a-98d1-49d9-a2c5-61dab45c789e}*SharedItemsImports = 9
+		Libraries\SPI\2.0.0\SPI\SPI-2.0.0.vcxitems*{968ea682-1816-414d-ab4d-b1e92873a3f7}*SharedItemsImports = 9
 		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{9913bf66-ac34-447d-a487-4fac5aa94abf}*SharedItemsImports = 9
 		Libraries\TFT_eSPI\2.4.72\TFT_eSPI\TFT_eSPI-2.4.72.vcxitems*{9e3c4939-de1f-4517-ab5b-2b4d941138c9}*SharedItemsImports = 9
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{a5324a00-7ab9-49e6-a940-63f4778d34b1}*SharedItemsImports = 9
 		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{b979fcc6-eadb-45f2-94e8-2f7afb2dfcd8}*SharedItemsImports = 9
-		..\Armatron Base\flib\flib.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\ArduinoOTA\2.0.0\ArduinoOTA\ArduinoOTA-2.0.0.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
@@ -84,7 +97,6 @@ Global
 		Libraries\Vector\1.2.1\Vector\Vector-1.2.1.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
-		..\Armatron Base\flib\flib.vcxitems*{cf3374c4-d664-4c71-89fe-1817ca12c954}*SharedItemsImports = 9
 		Libraries\Vector\1.2.1\Vector\Vector-1.2.1.vcxitems*{e1e33123-114a-4414-81db-ca7844556adb}*SharedItemsImports = 9
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{e3571d26-dd49-4e07-b263-7a936b403ae8}*SharedItemsImports = 4
 	EndGlobalSection
@@ -105,6 +117,10 @@ Global
 		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|x86.Build.0 = Debug|Win32
 		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|x86.ActiveCfg = Release|Win32
 		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|x86.Build.0 = Release|Win32
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|x86.ActiveCfg = Debug|Win32
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|x86.Build.0 = Debug|Win32
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|x86.ActiveCfg = Release|Win32
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

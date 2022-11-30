@@ -8,10 +8,9 @@ bool fNETModule::working = false;
 TwoWire fNETModule::I2C(0);
 
 DynamicJsonDocument fNETModule::data(1024);
-String fNETModule::ModuleType = "Unknown";
 
 uint8_t fNETModule::I2C_Address;
-unsigned long fNETModule::I2C_LastCommsMillis;
+long fNETModule::I2C_LastCommsMillis = -5000;
 bool fNETModule::I2C_IsConnected = false;
 bool fNETModule::I2C_Enabled = false;
 
@@ -24,4 +23,4 @@ int fNETModule::I2C_MessageFromMaster_CurrentPacket;
 fNETMessage* fNETModule::I2C_CurrentMessage;
 fNETMessage* fNETModule::I2C_MessageFromMaster;
 
-fNETConnection* fNETModule::Connection;
+fNETModule::ModuleConnection* fNETModule::Connection;

@@ -17,6 +17,30 @@
 
 class fNETController {
 public:
+    class ControllerConnection : public fNETConnection {
+    public:
+        ControllerConnection() : fNETConnection("controller") {
+
+        }
+
+        void QueueMessage(String d, String r) override {
+            msghandler(d, r);
+        }
+
+        void OnReceiveMessage(DynamicJsonDocument d) {
+            fNETConnection::OnReceiveMessageService(d);
+        }
+
+        int GetQueuedMessageCount() override {
+            int cnt = 0;
+            for (int i = 0; i < ModuleCount; i++) {
+                cnt += Modules[i]->QueuedMessageCount();
+            }
+
+            return cnt;
+        }
+    };
+
     class fNETSlaveConnection {
     public:
         String MAC_Address = "00:00:00:00:00:00";
@@ -53,7 +77,7 @@ public:
         }
 
         void RequestConfig() {
-            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Request config");
+            //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Request config");
             //QueueMessage("JSON{\"command\":\"getConfig\"}");
 
             DynamicJsonDocument q(128);
@@ -71,6 +95,7 @@ public:
             if (i2c_address == -1)
                 return;
 
+            long start_ms = millis();
             if (isOnline) {
                 ReadPendingMessage(wire);
                 SendPendingMessage(wire);
@@ -78,10 +103,12 @@ public:
 
             if (millis() - lastCheckedMillis > 1000)
                 CheckConnection(wire);
+
+            UpdateAveragePollTime(millis() - start_ms);
         }
 
         void QueueStr(String msg) {
-            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Queue: " + msg);
+            //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Queue: " + msg);
             SendBuffer.push(msg);
         }
 
@@ -99,6 +126,8 @@ public:
 
         void SetI2CAddr(uint8_t addr) {
             QueueStr("JSON{\"command\":\"setI2CAddr\", \"addr\":" + String(addr) + "\"}");
+
+            nextI2cAddr = addr;
         }
 
         String GetMacAddress(TwoWire* wire) {
@@ -128,17 +157,24 @@ public:
         DynamicJsonDocument Config;
 
         bool valid = true;
+
+        float AverageTransactionTimeMillis = 0;
+        float AveragePollTimeMillis = 0;
+
+        int TotalTransactions = 0;
+        int FailedTransactions = 0;
     private:
         CircularBuffer<String, 100> SendBuffer;
 
         int trNum = 0;
 
         String Transaction(TwoWire* wire, String send, int* error = nullptr) {
+            long start_ms = millis();
             String read;
             int receivedTrNum = -2;
 
             trNum++;
-
+            TotalTransactions++;
             //Serial.println("start transaction " + String(i2c_address));
             //Serial.println("send: " + send);
             //Serial.println("trnum: " + String(trNum));
@@ -164,13 +200,13 @@ public:
                 if (err) {
 
                     if (isOnline) {
-                        //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( transmission error )");
-                        //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Error: " + String(err));
+                        //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transaction error ( transmission error )");
+                        //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Error: " + String(err));
                     }
 
                     if (errcount > 3) {
                         if (isOnline)
-                            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed! ( transmission error )");
+                            Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transmission failed! ( transmission error )");
 
                         if (error != nullptr)
                             *error = -1;
@@ -183,7 +219,7 @@ public:
                     continue;
                 }
 
-                delay(10);
+                delay(2);
 
                 err = wire->requestFrom((int)i2c_address, 128);
                 //Serial.println("result:" + String(err));
@@ -201,11 +237,11 @@ public:
                 if (receivedTrNum >= trNum)
                     break;
 
-                Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transaction error ( resend )");
-                Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received: " + read);
+                Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transaction error ( resend )");
+                Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received: " + read);
 
                 if (errcount > 3) {
-                    Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Transmission failed! ( resend )");
+                    Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transmission failed! ( resend )");
 
                     if (error != nullptr)
                         *error = -2;
@@ -221,6 +257,18 @@ public:
             if (error != nullptr)
                 *error = 0;
 
+            long time = millis() - start_ms;
+            float totalTime = 0;
+
+            for (int i = 0; i < 31; i++) {
+                transactionTimes[i] = transactionTimes[i + 1];
+                totalTime += transactionTimes[i];
+            }
+
+            AverageTransactionTimeMillis = totalTime / 31;
+
+            transactionTimes[31] = time;
+
             return read.substring(12);
         }
 
@@ -230,7 +278,7 @@ public:
 
             String toSend = SendBuffer.first();
 
-            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Sending: " + toSend);
+            //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Sending: " + toSend);
 
             fNETMessage msg = fNETMessage(toSend, 0);
             //Serial.println("Converted to msg.");
@@ -286,8 +334,8 @@ public:
                     String read = Transaction(wire, "CMDPKT" + String(i), &error);
 
                     if (read.length() != 116) {
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message poll error ( packet transmission error )");
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received: " + read);
+                        Serial.println("[fNET fNET, Module: " + MAC_Address + "] Message poll error ( packet transmission error )");
+                        Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received: " + read);
                         return;
                     }
 
@@ -302,8 +350,8 @@ public:
                     pkt_data = packetData;
 
                     if (pkt_msgID != msg_ID) {
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message poll error ( received msg id mismatch )");
-                        Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received: " + read);
+                        Serial.println("[fNET fNET, Module: " + MAC_Address + "] Message poll error ( received msg id mismatch )");
+                        Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received: " + read);
                         return;
                     }
 
@@ -320,7 +368,7 @@ public:
                 }
 
                 if (pkt_data == "invalid") {
-                    Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message poll error ( packet data invalid )");
+                    Serial.println("[fNET fNET, Module: " + MAC_Address + "] Message poll error ( packet data invalid )");
                     return;
                 }
 
@@ -330,12 +378,12 @@ public:
             if (msg_data != "") {
                 OnReceiveMsg(msg_data);
 
-                //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Message transport took: " + String(millis() - sms) + "ms.");
+                //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Message transport took: " + String(millis() - sms) + "ms.");
             }
         }
 
         void OnReceiveMsg(String msg) {
-            //Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received message data:\n" + msg);
+            //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received message data:\n" + msg);
 
             if (msg.substring(0, 4) == "JSON")
                 OnReceiveJSON(msg.substring(4));
@@ -351,18 +399,18 @@ public:
             if (d["tag"] == "config")
                 OnReceiveConfig(d["data"]);
             else
-                Connection->OnReceiveMessageService(d);
+                Connection->OnReceiveMessage(d);
         }
 
         void OnReceiveConfig(String d) {
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Received config.");
+            Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received config.");
 
             String c_str;
             serializeJson(Config, c_str);
 
             if (c_str != d)
             {
-                Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Save new config");
+                Serial.println("[fNET fNET, Module: " + MAC_Address + "] Save new config");
                 deserializeJson(Config, d);
 
                 MAC_Address = Config["macAddress"].as<String>();
@@ -374,12 +422,17 @@ public:
         }
 
         void Disconnected() {
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Disconnected!");
+            Serial.println("[fNET fNET, Module: " + MAC_Address + "] Disconnected!");
             lastCheckedMillis = millis();
+
+            if (nextI2cAddr != -1) {
+                i2c_address = nextI2cAddr;
+                nextI2cAddr = -1;
+            }
         }
 
         void Reconnected() {
-            Serial.println("[fGMS fNET, Module: " + MAC_Address + "] Reconnected!");
+            Serial.println("[fNET fNET, Module: " + MAC_Address + "] Reconnected!");
 
             //awaitingConfiguration = true;
         }
@@ -405,22 +458,40 @@ public:
         }
 
         long lastCheckedMillis = 0;
+
+        int nextI2cAddr = -1;
+
+        long transactionTimes[32];
+        long pollTimes[32];
+
+        void UpdateAveragePollTime(long time) {
+            float totalTime = 0;
+
+            for (int i = 0; i < 31; i++) {
+                pollTimes[i] = pollTimes[i + 1];
+                totalTime += pollTimes[i];
+            }
+
+            AveragePollTimeMillis = totalTime / 31;
+
+            pollTimes[31] = time;
+        }
     };
 
     static fNETConnection* Init() {
         status_d = "init";
-        Connection = new fNETConnection("controller", &msghandler);
+        Connection = new ControllerConnection();
 
-        Serial.println("[fGMS] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
+        Serial.println("[fNET] Build date/time: " + String(__DATE__) + " / " + String(__TIME__));
 
         status_d = "read_cfg";
         ReadConfig();
-        Serial.println("[fGMS] Loading modules...");
+        Serial.println("[fNET] Loading modules...");
 
         status_d = "load_mdl";
         LoadModules();
 
-        Serial.println("[fGMS] Setup I2C...");
+        Serial.println("[fNET] Setup I2C...");
         status_d = "setup_i2c";
         SetupI2C();
 
@@ -436,7 +507,7 @@ public:
             });
 
 
-        Serial.println("[fGMS] Done.");
+        Serial.println("[fNET] Done.");
 
         Connection->IsConnected = true;
         status_d = "ok";
@@ -446,7 +517,7 @@ public:
     static DynamicJsonDocument data;
 
     static void Save() {
-        Serial.println("[fGMS] Saving...");
+        Serial.println("[fNET] Saving...");
 
         SaveModules();
 
@@ -455,11 +526,11 @@ public:
 
         Serial.println("New serialized data: \n" + data_serialized);
 
-        File data_file = LittleFS.open("/fGMS_SystemData.json", "w", true);
+        File data_file = LittleFS.open("/fNET_SystemData.json", "w", true);
         data_file.print(data_serialized.c_str());
         data_file.close();
 
-        Serial.println("[fGMS] Saved.");
+        Serial.println("[fNET] Saved.");
     }
 
     static fNETSlaveConnection* GetModuleByMAC(String mac) {
@@ -484,9 +555,20 @@ public:
         return -1;
     }
 
+    static void SetI2CState(bool enabled, float freq) {
+        data["isI2CEnabled"] = enabled;
+        data["I2CFrequency"] = freq;
+
+        Save();
+        ESP.restart();
+    }
+
+    static float I2C_freq;
+    static bool I2C_IsEnabled;
+
     static fNETSlaveConnection* Modules[32];
     static int ModuleCount;
-    static fNETConnection* Connection;
+    static ControllerConnection* Connection;
 
     static String status_d;
 
@@ -497,21 +579,21 @@ private:
         if (!mounted)
             err_LittleFSMountError();
 
-        File data_file = LittleFS.open("/fGMS_SystemData.json", "r");
+        File data_file = LittleFS.open("/fNET_SystemData.json", "r");
 
         if (!data_file)
             err_DataFileNotFound();
 
         String data_rawJson = data_file.readString();
         deserializeJson(data, data_rawJson);
-        Serial.println("[fGMS Controller] Read config: " + data_rawJson);
+        Serial.println("[fNET Controller] Read config: " + data_rawJson);
     }
 
     static void err_LittleFSMountError() {
         status_d = "mount_fail";
 
-        Serial.println("[fGMS LittleFS] LittleFS Mount error!");
-        Serial.println("[fGMS LittleFS] Attempt flash? (y/n)");
+        Serial.println("[fNET LittleFS] LittleFS Mount error!");
+        Serial.println("[fNET LittleFS] Attempt flash? (y/n)");
 
         while (!Serial.available()) {
             digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
@@ -522,18 +604,18 @@ private:
         }
 
         if (Serial.readStringUntil('\n') != "y") {
-            Serial.println("[fGMS LittleFS] Flash cancelled.");
+            Serial.println("[fNET LittleFS] Flash cancelled.");
             delay(500);
             ESP.restart();
         }
 
-        Serial.println("[fGMS LittleFS] Attempting to flash LittleFS.");
-        Serial.println("[fGMS LittleFS] This should not take more than 30 seconds.");
+        Serial.println("[fNET LittleFS] Attempting to flash LittleFS.");
+        Serial.println("[fNET LittleFS] This should not take more than 30 seconds.");
 
         LittleFS.format();
 
-        Serial.println("[fGMS LittleFS] LittleFS reflash done.");
-        Serial.println("[fGMS LittleFS] Rebooting.");
+        Serial.println("[fNET LittleFS] LittleFS reflash done.");
+        Serial.println("[fNET LittleFS] Rebooting.");
 
         delay(5000);
 
@@ -543,8 +625,8 @@ private:
     static void err_DataFileNotFound() {
         status_d = "cfg_err";
 
-        Serial.println("[fGMS] No data found!");
-        Serial.println("[fGMS] Reset system config?");
+        Serial.println("[fNET] No data found!");
+        Serial.println("[fNET] Reset system config?");
 
         while (!Serial.available()) {
             digitalWrite(fNET_PIN_INDICATOR_Y, HIGH);
@@ -555,7 +637,7 @@ private:
         }
 
         if (Serial.readStringUntil('\n') != "y") {
-            Serial.println("[fGMS] Reconfiguration cancelled.");
+            Serial.println("[fNET] Reconfiguration cancelled.");
             delay(500);
             ESP.restart();
         }
@@ -565,16 +647,16 @@ private:
     }
 
     static void SaveModules() {
-        Serial.println("[fGMS Controller] Saving modules.");
+        Serial.println("[fNET Controller] Saving modules.");
         JsonArray modulesArray = data.createNestedArray("modules");
 
         for (int i = 0; i < ModuleCount; i++) {
             fNETSlaveConnection* mod = Modules[i];
-            Serial.println("[fGMS Controller] Saving module " + String(mod->MAC_Address));
+            Serial.println("[fNET Controller] Saving module " + String(mod->MAC_Address));
 
             JsonObject object = modulesArray.createNestedObject();
 
-            object["id"] = mod->i2c_address;
+            object["addr"] = mod->i2c_address;
             object["port"] = mod->i2c_port;
             object["macAddress"] = mod->MAC_Address;
             object["data"] = mod->Config.as<JsonObject>();
@@ -590,7 +672,7 @@ private:
             String mac = o["macAddress"];
             JsonObject config_o = o["data"];
 
-            Serial.println("[fGMS Controller] Loaded module " + String(mac));
+            Serial.println("[fNET Controller] Loaded module " + String(mac));
 
             fNETSlaveConnection* d = new fNETSlaveConnection(mac, -1, 0);
             d->Config = config_o;
@@ -599,18 +681,24 @@ private:
             ModuleCount++;
         }
     }
+    
 
     static TwoWire I2C1;
     static TwoWire I2C2;
 
     static void SetupI2C() {
-        Serial.println("[fGMS fNET Controller] Beginnig I2Cs as master");
+        Serial.println("[fNET fNET Controller] Beginnig I2Cs as master");
 
-        I2C1.begin(fNET_SDA, fNET_SCK, (uint32_t)800000);
-        I2C_ScanModules(&I2C1);
-        //I2C2.begin(fGMS_SDA2, fGMS_SCK2, (uint32_t)800000);
+        I2C_IsEnabled = data["isI2CEnabled"].as<bool>();
+        I2C_freq = data["I2CFrequency"].as<int>();
 
-        xTaskCreate(I2CTask, "fGMS_fNETTask", 10000, nullptr, 0, nullptr);
+        if (I2C_IsEnabled) {
+            I2C1.begin(fNET_SDA, fNET_SCK, (uint32_t)I2C_freq);
+            I2C_ScanModules(&I2C1);
+            //I2C2.begin(fNET_SDA2, fNET_SCK2, (uint32_t)800000);
+
+            xTaskCreate(I2CTask, "fNET_fNETTask", 10000, nullptr, 0, nullptr);
+        }
     }
 
     static long I2C_LastScanMs;
@@ -619,7 +707,7 @@ private:
         while (true) {
             I2C_PollModules();
 
-            if (millis() - I2C_LastScanMs > 10000)
+            if (millis() - I2C_LastScanMs > 1000)
                 I2C_ScanModules(&I2C1);
 
             delay(100);
@@ -632,7 +720,7 @@ private:
     }
 
     static void AddNewModule(String mac) {
-        Serial.println("[fGMS Controller] Add new module: " + mac);
+        Serial.println("[fNET Controller] Add new module: " + mac);
 
         fNETSlaveConnection* dat = new fNETSlaveConnection(mac);
         //dat->SetI2CAddr(I2C_GetEmptyAddr(0));
@@ -643,25 +731,43 @@ private:
     }
 
     static uint8_t I2C_GetEmptyAddr(int port) {
-        return ModuleCount + 16;
+        for (int addr = 16; addr < 127; addr++) {
+            I2C1.beginTransmission(addr);
+            int err = I2C1.endTransmission();
+
+            if (err) {
+                bool ok = true;
+                for (int i = 0; i < ModuleCount; i++)
+                    if (Modules[i]->i2c_address == addr) {
+                        ok = false;
+                        break;
+                    }
+
+                if(ok)
+                    return addr;
+            }
+        }
+
+        return 128;
+        //return ModuleCount + 16;
     }
 
     static bool I2C_IsDevicePresentAtAddress(uint8_t addr, TwoWire* wire) {
-        //Serial.println("[fGMS fNET] Check address");
+        //Serial.println("[fNET fNET] Check address");
         wire->beginTransmission(addr);
         int err = wire->endTransmission();
 
-        //Serial.println("[fGMS fNET] Present? :" + String(err));
+        //Serial.println("[fNET fNET] Present? :" + String(err));
 
         return err == 0;
     }
 
     static String GetMacAddress(uint8_t addr, TwoWire* wire) {
-        //Serial.println("[fGMS fNET] Get MAC");
+        //Serial.println("[fNET fNET] Get MAC");
         if (!I2C_IsDevicePresentAtAddress(addr, wire))
             return "";
 
-        //Serial.println("[fGMS fNET] Address present.");
+        //Serial.println("[fNET fNET] Address present.");
 
         fNETSlaveConnection* m = new fNETSlaveConnection(addr, 0);
 
@@ -685,14 +791,14 @@ private:
     }
 
     static void I2C_ScanModules(TwoWire* wire) {
-        //Serial.println("[fGMS fNET] Scanning for modules...");
+        //Serial.println("[fNET fNET] Scanning for modules...");
 
         I2C_LastScanMs = millis();
 
         for (int i = 16; i < 32; i++) {
-            //Serial.println("[fGMS fNET] Check " + String(i));
+            //Serial.println("[fNET fNET] Check " + String(i));
             String mac = GetMacAddress(i, wire);
-            //Serial.println("[fGMS fNET] MAC: " + mac);
+            //Serial.println("[fNET fNET] MAC: " + mac);
 
             if (mac == "")
                 continue;
@@ -701,7 +807,7 @@ private:
             for (int j = 0; j < ModuleCount; j++) {
                 if (Modules[j]->MAC_Address == mac) {
                     if (!Modules[j]->isOnline)
-                        Serial.println("[fGMS fNET] Found module " + mac + " at address: " + i);
+                        Serial.println("[fNET fNET] Found module " + mac + " at address: " + i);
 
                     Modules[j]->i2c_address = i;
 
@@ -711,7 +817,7 @@ private:
             }
 
             if (!found) {
-                Serial.println("[fGMS fNET] Found NEW module " + mac + " at address: " + i);
+                Serial.println("[fNET fNET] Found NEW module " + mac + " at address: " + i);
                 AddNewModule(mac);
             }
         }
@@ -723,12 +829,12 @@ private:
             fNETSlaveConnection* d = GetModuleByMAC(mac);
 
             if (d != nullptr) {
-                Serial.println("[fGMS fNET] Found module " + mac + " at address 0x01");
+                Serial.println("[fNET fNET] Found module " + mac + " at address 0x01");
                 d->i2c_address = 0x01;
                 d->SetI2CAddr(I2C_GetEmptyAddr(0));
             }
             else {
-                Serial.println("[fGMS fNET] Found NEW module " + mac + " at address 0x01");
+                Serial.println("[fNET fNET] Found NEW module " + mac + " at address 0x01");
                 AddNewModule(mac);
             }
         }
@@ -740,5 +846,6 @@ private:
         if (m != nullptr)
             m->QueueStr(msg);
     }
+
 };
 #endif

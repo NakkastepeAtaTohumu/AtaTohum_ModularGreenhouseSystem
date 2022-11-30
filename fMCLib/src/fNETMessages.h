@@ -9,7 +9,7 @@
 #include <ArduinoJson.hpp>
 #include <ArduinoJson.h>
 
-#ifndef fGMS_USE_CUSTOM_PINS
+#ifndef fNET_USE_CUSTOM_PINS
 
 #define fNET_SDA 25
 #define fNET_SCK 26
@@ -23,17 +23,17 @@
 
 #endif
 
-struct fGMS_I2CPacket {
+struct fNET_I2CPacket {
     String data;
     int messageID;
     int packetID;
     String content;
 
-    fGMS_I2CPacket() {
+    fNET_I2CPacket() {
         data = "0#######0###invalid";
     }
 
-    fGMS_I2CPacket(String d, int pkg_id, int msg_id) {
+    fNET_I2CPacket(String d, int pkg_id, int msg_id) {
         String msgIDData = PaddedInt(msg_id, 8);
         String packetIDData = PaddedInt(pkg_id, 4);
 
@@ -49,7 +49,7 @@ struct fGMS_I2CPacket {
 struct fNETMessage {
     String data;
     int messageID;
-    fGMS_I2CPacket packets[32];
+    fNET_I2CPacket packets[32];
     int packetCount;
 
     fNETMessage() {
@@ -64,7 +64,7 @@ struct fNETMessage {
         int packet_id = 0;
         while (data.length() > 64) {
             String dat = data.substring(0, 64);
-            packets[packet_id] = fGMS_I2CPacket(dat, packet_id, msgID);
+            packets[packet_id] = fNET_I2CPacket(dat, packet_id, msgID);
 
             data.remove(0, 64);
             packet_id++;
@@ -75,7 +75,7 @@ struct fNETMessage {
         while (data.length() < 64)
             data.concat("#");
 
-        packets[packet_id] = fGMS_I2CPacket(data, packet_id, msgID);
+        packets[packet_id] = fNET_I2CPacket(data, packet_id, msgID);
 
         packetCount = packet_id + 1;
     }
