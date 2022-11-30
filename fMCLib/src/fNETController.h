@@ -208,6 +208,7 @@ public:
                         if (isOnline)
                             Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transmission failed! ( transmission error )");
 
+                        FailedTransactions++;
                         if (error != nullptr)
                             *error = -1;
 
@@ -242,6 +243,8 @@ public:
 
                 if (errcount > 3) {
                     Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transmission failed! ( resend )");
+
+                    FailedTransactions++;
 
                     if (error != nullptr)
                         *error = -2;

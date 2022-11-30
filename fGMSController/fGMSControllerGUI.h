@@ -300,11 +300,11 @@ private:
                 mm->configured->SetI2CAddr(msm->i2cAddrField->Value);
                 }, ""));
 
-            AddElement(new Button("Edit Config", width / 2, 110, 76, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {}, ""));
+            //AddElement(new Button("Edit Config", width / 2, 110, 76, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {}, ""));
             AddElement(new Button("REMOVE", width / 2, 148, 76, 12, 0, 1, TFT_BLACK, TFT_RED, []() {
-                if (fNETController::I2C_IsEnabled)
+                if (fNETController::I2C_IsEnabled && mm->configured->isOnline)
                 {
-                    alertmenu->updateMessage("Can't remove", "Disable I2C to remove.");
+                    alertmenu->updateMessage("Can't remove", "Disable I2C.");
                     fGUI::OpenMenu(alertmenuid);
                     return;
                 }
@@ -339,7 +339,9 @@ private:
             macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
             stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
             avgPollD = new UncenteredTextElement("Average Poll: MSMSMS", 6, 70, 0, 1, TFT_WHITE);
-            avgTransD = new UncenteredTextElement("Average Transacction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
+            avgTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
+            totalTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
+            failTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
 
             AddElement(new TextElement("Stats", width / 2, 12, 2, 1, TFT_WHITE));
             AddElement(nameD);
@@ -347,6 +349,8 @@ private:
             AddElement(stateD);
             AddElement(avgPollD);
             AddElement(avgTransD);
+            AddElement(totalTransD);
+            AddElement(failTransD);
 
             //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
         }
@@ -365,6 +369,8 @@ private:
 
             avgPollD->t = "Avg poll: " + String(mm->configured->AveragePollTimeMillis) + " ms";
             avgTransD->t = "Avg trans: " + String(mm->configured->AverageTransactionTimeMillis) + " ms";
+            totalTransD->t = "Total trans: " + String(mm->configured->TotalTransactions) + " ms";
+            failTransD->t = "Failed trans: " + String(mm->configured->FailedTransactions) + " ms";
         }
 
         void Draw() override {
@@ -381,6 +387,8 @@ private:
         TextElement* stateD;
         UncenteredTextElement* avgPollD;
         UncenteredTextElement* avgTransD;
+        UncenteredTextElement* totalTransD;
+        UncenteredTextElement* failTransD;
 
         long lastUpdateMillis = 0;
     };
