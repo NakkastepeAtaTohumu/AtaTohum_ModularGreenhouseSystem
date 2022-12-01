@@ -8,6 +8,7 @@
 
 #include <ESP32Encoder.h>
 #include "fGMSControllerGUI.h"
+#include "fGMS.h"
 
 //#include "fSerialParser.h"
 
@@ -37,22 +38,15 @@ void setup() {
 
     fGMSControllerMenu::Init();
     fNETConnection* c = fNETController::Init();
-
-    JsonObject* r = c->Query("C8:F0:9E:9E:70:38", "getValues");
+    fGMS::Init(c);
 
     DynamicJsonDocument d(256);
-    d["interval"] = 1000;
-    c->Query("C8:F0:9E:9E:70:38", "setValueInterval", &d);
-
-    if (r != nullptr) {
-        String f;
-        serializeJsonPretty(*r, f);
-
-        Serial.println("Query return:\n"+ f);
-    }
+    d["state"] = 0b1111;
+    JsonObject* result = c->Query("C8:F0:9E:9E:7C:80", "setState", &d);
 }
 
 void loop() {
-    vTaskDelete(NULL); //loop() is unused
-    delay(0);
+    Serial.println("Free heap: " + String(ESP.getFreeHeap()));
+    //vTaskDelete(NULL); //loop() is unused
+    delay(1000);
 }

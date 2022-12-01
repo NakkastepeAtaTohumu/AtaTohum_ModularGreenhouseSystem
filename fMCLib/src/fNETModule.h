@@ -101,6 +101,7 @@ public:
     }
 
     static fNETModuleState State;
+    static bool working;
 
 private:
     static TwoWire I2C;
@@ -109,7 +110,7 @@ private:
 
     static bool I2C_Enabled;
 
-    static bool err, fatal_err, working;
+    static bool err, fatal_err;
 
     static ModuleConnection* Connection;
 

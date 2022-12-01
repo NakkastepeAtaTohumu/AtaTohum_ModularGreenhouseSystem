@@ -1,6 +1,7 @@
 #include "fGUILib.h"
 #include "fGUIElementMenu.h"
 #include "fNETController.h"
+#include "fGMS.h"
 
 class fGMSControllerMenu {
 private:
@@ -15,11 +16,23 @@ private:
             //AddElement(new Button("Debug", width / 2, 140, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
 
             AddElement(new Button("M", 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {}, "Monitor"));
-            AddElement(new Button("C", width / 2, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {}, "Config"));
+            AddElement(new Button("C", width / 2, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {fGUI::OpenMenu(10); }, "Config"));
             AddElement(new Button("L", width - 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {}, "Logs"));
             AddElement(new Button("D", width - 24, 112, 32, 32, 2, 1, TFT_BLACK, TFT_DARKGREY, []() { fGUI::OpenMenu(1); }, "Debug"));
 
             AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
+        }
+    };
+
+    class ConfigMenu : public fGUIElementMenu {
+    public:
+        void InitializeElements() {
+            AddElement(new Button("HYG", 24, 40, 32, 32, 2, 1, TFT_BLACK, TFT_LIGHTGREY, []() { fGUI::OpenMenu(9); }, "Hygrometers"));
+            AddElement(new Button("VLV", width / 2, 40, 32, 32, 2, 1, TFT_BLACK, TFT_LIGHTGREY, []() { fGUI::OpenMenu(12); }, "Valves"));
+
+            AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_WHITE));
+
+            bg_color = TFT_BLACK;
         }
     };
 
@@ -340,8 +353,8 @@ private:
             stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
             avgPollD = new UncenteredTextElement("Average Poll: MSMSMS", 6, 70, 0, 1, TFT_WHITE);
             avgTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
-            totalTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
-            failTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
+            totalTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 100, 0, 1, TFT_WHITE);
+            failTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 110, 0, 1, TFT_WHITE);
 
             AddElement(new TextElement("Stats", width / 2, 12, 2, 1, TFT_WHITE));
             AddElement(nameD);
@@ -369,8 +382,8 @@ private:
 
             avgPollD->t = "Avg poll: " + String(mm->configured->AveragePollTimeMillis) + " ms";
             avgTransD->t = "Avg trans: " + String(mm->configured->AverageTransactionTimeMillis) + " ms";
-            totalTransD->t = "Total trans: " + String(mm->configured->TotalTransactions) + " ms";
-            failTransD->t = "Failed trans: " + String(mm->configured->FailedTransactions) + " ms";
+            totalTransD->t = "Total trans: " + String(mm->configured->TotalTransactions);
+            failTransD->t = "Failed trans: " + String(mm->configured->FailedTransactions);
         }
 
         void Draw() override {
@@ -498,7 +511,7 @@ private:
 
             AddElement(freqField);
             AddElement(new Button("Set frequency", width / 2, 90, 80, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-               fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value * 100000);
+                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value * 100000);
                 }, ""));
 
             AddElement(new Button("Toggle I2C", width / 2, 110, 80, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
@@ -521,6 +534,403 @@ private:
         NumberInputElement* freqField;
     };
 
+    class HygrometerModuleListElement : public ListElement {
+    public:
+        HygrometerModuleListElement(fGMS::HygrometerModule* md) {
+            mdl = md;
+            isSelectable = false;
+
+            Update();
+        }
+
+        int Draw(int x, int y) override {
+            d->setTextFont(0);
+
+            //uint16_t bgc = d->color24to16(0x303030);
+            uint16_t bgc = d->color24to16(0x505050);
+
+
+            if (isHighlighted)
+                d->setTextColor(TFT_WHITE, TFT_DARKGREY, true);
+            else
+                d->setTextColor(TFT_WHITE, bgc, true);
+
+            d->setTextSize(1);
+            //DrawTextCentered(d, t, x, y - (d->fontHeight() / 2));
+            d->setCursor(x, y);
+
+            d->print(name);
+            return d->fontHeight() + 2;
+        }
+
+        void OnHighlight() override {
+            hmm->configured = mdl;
+            hmm->configured_element = this;
+        }
+
+        void OnClick() override {
+            fGUI::OpenMenu(11);
+        }
+
+        void Update() {
+            name = mdl->mdl->Config["name"].as<String>();
+        }
+
+        fGMS::HygrometerModule* mdl;
+
+        String name;
+    };
+
+    class ValveModuleListElement : public ListElement {
+    public:
+        ValveModuleListElement(fGMS::ValveModule* md) {
+            mdl = md;
+            isSelectable = false;
+
+            Update();
+        }
+
+        int Draw(int x, int y) override {
+            d->setTextFont(0);
+
+            //uint16_t bgc = d->color24to16(0x303030);
+            uint16_t bgc = d->color24to16(0x505050);
+
+
+            if (isHighlighted)
+                d->setTextColor(TFT_WHITE, TFT_DARKGREY, true);
+            else
+                d->setTextColor(TFT_WHITE, bgc, true);
+
+            d->setTextSize(1);
+            //DrawTextCentered(d, t, x, y - (d->fontHeight() / 2));
+            d->setCursor(x, y);
+
+            d->print(name);
+            return d->fontHeight() + 2;
+        }
+
+        void OnHighlight() override {
+            vmm->configured = mdl;
+            vmm->configured_element = this;
+        }
+
+        void OnClick() override {
+            fGUI::OpenMenu(13);
+        }
+
+        void Update() {
+            name = mdl->mdl->Config["name"].as<String>();
+        }
+
+        fGMS::ValveModule* mdl;
+
+        String name;
+    };
+
+    class HygrometerModulesMenu : public ListMenu {
+    public:
+        void AddModule(fGMS::HygrometerModule* c) {
+            if (!modulePresent)
+                RemoveElement(0);
+
+            modulePresent = true;
+
+            AddElement(new HygrometerModuleListElement(c));
+        }
+
+        void RemoveModule(int i) {
+            RemoveElement(i);
+        }
+
+        void InitializeElements() {
+            uint16_t c = d->color24to16(0x303030);
+
+            AddElement(new ListTextElement("No hygrometer modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+
+            start_x = 16;
+        }
+
+        void Enter() override {
+            ListMenu::Enter();
+
+            if (numElements == 0) {
+                AddElement(new ListTextElement("No hygrometer modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+                modulePresent = false;
+            }
+        }
+
+        void Draw() override {
+            ListMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 1000) {
+                UpdateElements();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        void UpdateElements() {
+            for (int i = 0; i < fGMS::HygrometerModuleCount; i++) {
+                fGMS::HygrometerModule* m = fGMS::HygrometerModules[i];
+
+                if (!m->ok)
+                    continue;
+
+                if (modulePresent) {
+                    bool skip = false;
+                    for (int i = 0; i < numElements; i++)
+                        if (((HygrometerModuleListElement*)elements[i])->mdl == m) {
+                            skip = true;
+                            break;
+                        }
+
+
+                    if (skip)
+                        continue;
+                }
+
+                AddModule(m);
+            }
+
+            if (!modulePresent)
+                return;
+
+            for (int i = 0; i < numElements; i++)
+                if (!((HygrometerModuleListElement*)elements[i])->mdl->ok)
+                    RemoveElement(i);
+
+
+            for (int i = 0; i < numElements; i++)
+                ((HygrometerModuleListElement*)elements[i])->Update();
+
+            addedModules = true;
+        }
+
+        fGMS::HygrometerModule* configured;
+        HygrometerModuleListElement* configured_element;
+
+    private:
+        bool addedModules = false;
+        bool modulePresent = false;
+
+        long lastUpdateMillis = 0;
+    };
+
+    class ValveModulesMenu : public ListMenu {
+    public:
+        void AddModule(fGMS::ValveModule* c) {
+            if (!modulePresent)
+                RemoveElement(0);
+
+            modulePresent = true;
+
+            AddElement(new ValveModuleListElement(c));
+        }
+
+        void RemoveModule(int i) {
+            RemoveElement(i);
+        }
+
+        void InitializeElements() {
+            uint16_t c = d->color24to16(0x303030);
+
+            AddElement(new ListTextElement("No valve modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+
+            start_x = 16;
+        }
+
+        void Enter() override {
+            ListMenu::Enter();
+
+            if (numElements == 0) {
+                AddElement(new ListTextElement("No valve modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+                modulePresent = false;
+            }
+        }
+
+        void Draw() override {
+            ListMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 1000) {
+                UpdateElements();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        void UpdateElements() {
+            for (int i = 0; i < fGMS::ValveModuleCount; i++) {
+                fGMS::ValveModule* m = fGMS::ValveModules[i];
+
+                if (!m->ok)
+                    continue;
+
+                if (modulePresent) {
+                    bool skip = false;
+                    for (int i = 0; i < numElements; i++)
+                        if (((ValveModuleListElement*)elements[i])->mdl == m) {
+                            skip = true;
+                            break;
+                        }
+
+
+                    if (skip)
+                        continue;
+                }
+
+                AddModule(m);
+            }
+
+            if (!modulePresent)
+                return;
+
+            for (int i = 0; i < numElements; i++)
+                if (!((ValveModuleListElement*)elements[i])->mdl->ok)
+                    RemoveElement(i);
+
+
+            for (int i = 0; i < numElements; i++)
+                ((ValveModuleListElement*)elements[i])->Update();
+
+            addedModules = true;
+        }
+
+        fGMS::ValveModule* configured;
+        ValveModuleListElement* configured_element;
+
+    private:
+        bool addedModules = false;
+        bool modulePresent = false;
+
+        long lastUpdateMillis = 0;
+    };
+
+    class HygrometerModuleConfigMenu : public fGUIElementMenu {
+    public:
+        void InitializeElements() override {
+            nameD = new TextElement("HYGRO XX", width / 2, 30, 0, 1, TFT_WHITE);
+            macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
+            stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
+            valueD = new UncenteredTextElement("Values: VAL, VAL, VAL, VAL", 6, 70, 0, 1, TFT_WHITE);
+
+            AddElement(new TextElement("Hygrometer Module", width / 2, 12, 0, 1, TFT_WHITE));
+            AddElement(nameD);
+            AddElement(macD);
+            AddElement(stateD);
+            AddElement(valueD);
+
+            //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
+        }
+
+        void Enter() override {
+            fGUIElementMenu::Enter();
+
+            Update();
+        }
+
+        void Update() {
+            nameD->t = hmm->configured_element->name;
+            macD->t = hmm->configured->mdl->MAC_Address;
+
+            stateD->t = hmm->configured->ok ? "OK" : "ERROR";
+
+            valueD->t = "Values: " + String(hmm->configured->Values[0])
+                + ", " + String(hmm->configured->Values[1])
+                + ", " + String(hmm->configured->Values[2])
+                + ", " + String(hmm->configured->Values[3]);
+        }
+
+        void Draw() override {
+            fGUIElementMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 100) {
+                Update();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        TextElement* nameD;
+        TextElement* macD;
+        TextElement* stateD;
+        UncenteredTextElement* valueD;
+
+        long lastUpdateMillis = 0;
+    };
+
+    class ValveModuleConfigMenu : public fGUIElementMenu {
+    public:
+        void InitializeElements() override {
+            nameD = new TextElement("VALVE XX", width / 2, 30, 0, 1, TFT_WHITE);
+            macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
+            stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
+            stateD2 = new UncenteredTextElement("Values: VAL, VAL, VAL, VAL", 6, 70, 0, 1, TFT_WHITE);
+
+            stateInput = new NumberInputElement("Set state:", width / 2, 80, 0, 1, TFT_WHITE, TFT_DARKGREY);
+
+            AddElement(new TextElement("Valve Module", width / 2, 12, 0, 1, TFT_WHITE));
+            AddElement(nameD);
+            AddElement(macD);
+            AddElement(stateD);
+            AddElement(stateD2);
+            AddElement(stateInput);
+            //AddElement(new Button("Set state", width / 2, 92, 72, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {}, "Set state"));
+
+            //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
+
+            xTaskCreate(setstatetask, "valveStatusUpdater", 4096, nullptr, 0, nullptr);
+        }
+
+        void Enter() override {
+            fGUIElementMenu::Enter();
+
+            Update();
+
+            run = true;
+        }
+
+        void Update() {
+            nameD->t = vmm->configured_element->name;
+            macD->t = vmm->configured->mdl->MAC_Address;
+
+            stateD->t = vmm->configured->ok ? "OK" : "ERROR";
+            stateD2->t = String(vmm->configured->State);
+        }
+
+        void Exit() override {
+            fGUIElementMenu::Exit();
+
+            run = false;
+        }
+
+        static void setstatetask(void* param) {
+            while (true) {
+                delay(100);
+                if (run) {
+                    if (vmm->configured->State != stateInput->Value)
+                        vmm->configured->SetState(stateInput->Value);
+                }
+            };
+        }
+
+        void Draw() override {
+            fGUIElementMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 100) {
+                Update();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        TextElement* nameD;
+        TextElement* macD;
+        TextElement* stateD;
+        UncenteredTextElement* stateD2;
+        static NumberInputElement* stateInput;
+
+        static bool run;
+
+        long lastUpdateMillis = 0;
+    };
+
 public:
     static void Init() {
         ESP32Encoder* e = new ESP32Encoder();
@@ -531,8 +941,6 @@ public:
         fGUI::AttachButton(16);
         fGUI::AttachButton(17);
 
-        title = new TitleMenu();
-        dbm = new DebugMenu();
         mm = new ModuleMenu();
         mmo = new ModuleMenuOverlay();
         mmmo = new ModuleMenuManageOverlay();
@@ -540,9 +948,11 @@ public:
         mstm = new ModuleStatsMenu();
         scm = new SystemConfigMenu();
         icm = new I2CConfigsMenu();
+        hmm = new HygrometerModulesMenu();
+        vmm = new ValveModulesMenu();
 
-        fGUI::AddMenu(title);
-        fGUI::AddMenu(dbm);
+        fGUI::AddMenu(new TitleMenu());
+        fGUI::AddMenu(new DebugMenu());
         fGUI::AddMenu(mm);
         fGUI::AddMenu(mmo);
         fGUI::AddMenu(mmmo);
@@ -550,6 +960,11 @@ public:
         fGUI::AddMenu(scm);
         fGUI::AddMenu(mstm);
         fGUI::AddMenu(icm);
+        fGUI::AddMenu(hmm);
+        fGUI::AddMenu(new ConfigMenu());
+        fGUI::AddMenu(new HygrometerModuleConfigMenu());
+        fGUI::AddMenu(vmm);
+        fGUI::AddMenu(new ValveModuleConfigMenu());
 
         fGUI::Init(e, 34);
 
@@ -569,8 +984,6 @@ public:
     }
 
 private:
-    static TitleMenu* title;
-    static DebugMenu* dbm;
     static ModuleMenu* mm;
     static ModuleMenuOverlay* mmo;
     static ModuleMenuManageOverlay* mmmo;
@@ -578,6 +991,8 @@ private:
     static ModuleStatsMenu* mstm;
     static SystemConfigMenu* scm;
     static I2CConfigsMenu* icm;
+    static HygrometerModulesMenu* hmm;
+    static ValveModulesMenu* vmm;
 
     static void updateGUITask(void* param) {
         while (true) {

@@ -7,7 +7,6 @@
 #include <WiFi.h>
 #include <ArduinoJson.hpp>
 #include <ArduinoJson.h>
-#include <UUID.h>
 #include <LittleFS.h>
 #include <CircularBuffer.h>
 
@@ -395,7 +394,7 @@ public:
         CircularBuffer<DynamicJsonDocument*, 8> ReceivedJSONBuffer;
 
         void OnReceiveJSON(String msg) {
-            DynamicJsonDocument d = DynamicJsonDocument(1024);
+            DynamicJsonDocument d = DynamicJsonDocument(256);
 
             deserializeJson(d, msg);
 

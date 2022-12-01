@@ -1,9 +1,15 @@
 #include <Adafruit_ADS1X15.h>
-#include "fNETLib.h"
+#include <Adafruit_I2CDevice.h>
 
+#include <SPI.h>
 #include <Wire.h>
 
+#include <WiFi.h>
+
+#include "fNETLib.h"
+
 Adafruit_ADS1115 adc1;
+Adafruit_ADS1115 adc2;
 TwoWire auxI2C(1);
 
 float sendInterval = 0;
@@ -16,7 +22,8 @@ void setup() {
 
     c = fNETModule::Init();
     fNETModule::data["ModuleType"] = "HygroCtl";
-    fNETModule::data["name"] = "HYGRO {uniqueLetter}";
+    fNETModule::data["name"] = "HYGRO A"; //TODO Unique to moduele!
+    fNETModule::data["channels"] = 4;
 
     auxI2C.begin(fNET_SDA2, fNET_SCK2);
 
@@ -26,6 +33,13 @@ void setup() {
     }
     else
         Serial.println("[fGMS HygroCtl] Connected to integrated ADC.");
+
+    if (!adc2.begin(73, &auxI2C))
+        Serial.println("[fGMS HygroCtl] No external ADC.");
+    else {
+        fNETModule::data["channels"] = 8;
+        Serial.println("[fGMS HygroCtl] Connected to external ADC.");
+    }
 
     adc1.setGain(GAIN_ONE);
 
@@ -59,6 +73,8 @@ void setup() {
 }
 
 long lastSentMS;
+long data_id;
+
 void SendData() {
     if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 2) {
         DynamicJsonDocument send(256);
@@ -78,6 +94,7 @@ void SendData() {
         send["recipient"] = "controller";
         send["tag"] = "values";
         send["auto"] = true;
+        send["dataID"] = data_id++;
 
         c->Send(send);
 
@@ -89,4 +106,5 @@ void loop() {
     delay(100);
 
     SendData();
+    fNETModule::working = sendInterval != 0 && c->GetQueuedMessageCount() <= 2;
 }

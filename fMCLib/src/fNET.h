@@ -90,6 +90,8 @@ public:
 
     }
 
+    CircularBuffer<DynamicJsonDocument*, 32> ReceivedJSONBuffer;
+
 protected:
     virtual void QueueMessage(String d, String r) {
 
@@ -111,13 +113,17 @@ protected:
         }
         else if (MessageReceived != nullptr)
             MessageReceived(d);
-
+        
         ReceivedJSONBuffer.unshift(new DynamicJsonDocument(d));
+
+        if (ReceivedJSONBuffer.isFull()) {
+            delete ReceivedJSONBuffer.pop();
+        }
     }
 
 private:
     void ProcessQuery(DynamicJsonDocument q) {
-        DynamicJsonDocument r(4096);
+        DynamicJsonDocument r(1024);
 
         for (int i = 0; i < ResponderNum; i++) {
             if (Responders[i]->queryType == q["query"]) {
@@ -126,7 +132,7 @@ private:
             }
         }
 
-        DynamicJsonDocument send(4096);
+        DynamicJsonDocument send(1280);
 
         send["recipient"] = q["source"];
         send["tag"] = "queryResult";
@@ -151,8 +157,6 @@ private:
     }
 
     int LastQueryID = 0;
-
-    CircularBuffer<DynamicJsonDocument*, 8> ReceivedJSONBuffer;
 
     fNETQueryResponder* Responders[32];
     int ResponderNum = 0;
