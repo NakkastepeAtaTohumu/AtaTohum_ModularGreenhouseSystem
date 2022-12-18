@@ -2,6 +2,8 @@
 #include <Adafruit_ADS1X15.h>
 #include <Adafruit_I2CDevice.h>
 
+#include "soc/rtc_cntl_reg.h"
+
 #include <SPI.h>
 #include <Wire.h>
 
@@ -15,6 +17,7 @@ HardwareSerial CO2SensorUART(1);
 Adafruit_SHT31 airSensor(&auxI2C);
 
 float sendInterval = 0;
+bool fanOn = false;
 
 fNETConnection* c;
 
@@ -46,7 +49,7 @@ float ReadCO2FromSensor() {
     byte checksum = CO2UART_GetCheckSum(buffer);
 
     if (buffer[8] != checksum) {
-        Serial.println("[fGMS AirSensor CO2] Checksum mismatch!");
+        ESP_LOGE("fGMS AirSensor CO2", "Checksum mismatch!");
         return NAN;
     }
 
@@ -54,63 +57,96 @@ float ReadCO2FromSensor() {
     return ppm;
 }
 
+void SetFan(bool on) {
+    ESP_LOGD("fGMS AirSensor", "Set fan %s.", (on ? "on" : "off"));
+    fanOn = on;
+
+    digitalWrite(13, on);
+}
+
 void setup() {
     Serial.begin(115200);
-    Serial.println("[fGMS HygroCtl] Air Sensor starting");
+    ESP_LOGE("fGMS AirSensor", "Air Sensor starting");
 
     c = fNETModule::Init();
     fNETModule::data["ModuleType"] = "AirSensor";
     fNETModule::data["name"] = "AIR A"; //TODO Unique to moduele!
-    fNETModule::data["channels"] = 4;
+    
 
-    auxI2C.begin(fNET_SDA2, fNET_SCK2);
-    airSensor.begin();
+    bool i2cOK = auxI2C.begin(fNET_SDA2, fNET_SCK2);
     CO2SensorUART.begin(9600, SERIAL_8N1, 17, 16);
 
+    if (!i2cOK)
+    {
+        ESP_LOGE("fGMS Aux I2C", "I2C failed to begin!");
+        fNETModule::SetFatalErrorState();
+    }
+
     if (!airSensor.begin()) {
-        Serial.println("[fGMS AirSensor SHT31] Can't connect to SHT31!");
+        ESP_LOGE("fGMS AirSensor SHT31", "Can't connect to SHT31!");
         fNETModule::SetFatalErrorState();
     }
     else
-        Serial.println("[fGMS AirSensor SHT31] Connected to SHT31.");
+        ESP_LOGI("fGMS AirSensor SHT31", "Connected to SHT31.");
 
-    Serial.println("[fGMS AirSensor SHT31] Testing sensor.");
+    ESP_LOGI("fGMS AirSensor SHT31", "Testing sensor.");
 
     float temperature, humidity;
     airSensor.readBoth(&temperature, &humidity);
 
-    Serial.println("[fGMS AirSensor SHT31] Read temperature: " + String(temperature) + " C humidity: " + String(humidity) + "%.");
+    ESP_LOGI("fGMS AirSensor SHT31", "Read temperature : %s C humidity : %s %.", String(temperature), String(humidity));
 
     if (isnan(temperature) ||isnan(humidity))
     {
-        Serial.println("[fGMS AirSensor SHT31] Sensor error!");
+        ESP_LOGE("fGMS AirSensor SHT31", "Sensor error!");
         fNETModule::SetFatalErrorState();
     }
     else
-        Serial.println("[fGMS AirSensor SHT31] Sensor OK.");
+        ESP_LOGI("fGMS AirSensor SHT31", "Sensor OK.");
 
-    Serial.println("[fGMS AirSensor CO2] Testing sensor.");
-
+    ESP_LOGI("fGMS AirSensor CO2", "Testing sensor.");
     float ppm = ReadCO2FromSensor();
-    Serial.println("[fGMS AirSensor CO2] Read ppm: " + String(ppm));
+    ESP_LOGI("fGMS AirSensor CO2", "Read ppm : %s", String(ppm));
 
     if (isnan(ppm))
     {
-        Serial.println("[fGMS AirSensor CO2] Sensor error!");
+        ESP_LOGE("fGMS AirSensor CO2", "Sensor error!");
         fNETModule::SetFatalErrorState();
+
+
+        int reg = READ_PERI_REG(RTC_CNTL_RESET_CAUSE_APPCPU);
+
+        ESP_LOGE("fGMS AirSensor CO2", "Reset cause: %d", reg);
+
+        delay(10000);
+        ESP.restart();
     }
     else {
-        Serial.println("[fGMS AirSensor CO2] Checksum match.");
-        Serial.println("[fGMS AirSensor CO2] Sensor OK.");
+        ESP_LOGD("fGMS AirSensor CO2", "Checksum match.");
+        ESP_LOGI("fGMS AirSensor CO2", "Sensor OK.");
     }
+
+    pinMode(13, OUTPUT);
+
+    SetFan(true);
+    delay(1000);
+    SetFan(false);
 
     c->AddQueryResponder("setValueInterval", [](DynamicJsonDocument q) {
         sendInterval = q["interval"];
 
-        Serial.println("[fGMS AirSensor] Set send interval: " + String(sendInterval) + " ms.");
+        ESP_LOGD("fGMS AirSensor", "Set send interval : %f ms.", sendInterval);
 
         DynamicJsonDocument resp(256);
         resp["interval"] = String(sendInterval);
+        return resp;
+        });
+
+    c->AddQueryResponder("setFan", [](DynamicJsonDocument q) {
+        SetFan(q["enabled"]);
+
+        DynamicJsonDocument resp(256);
+        resp["enabled"] = String(fanOn);
         return resp;
         });
 }

@@ -10,11 +10,18 @@
 
 Adafruit_ADS1115 adc1;
 Adafruit_ADS1115 adc2;
+Adafruit_ADS1115 adc3;
+Adafruit_ADS1115 adc4;
+
+Adafruit_ADS1115* adcs[4];
+int adcNum;
+
 TwoWire auxI2C(1);
 
 float sendInterval = 0;
 
 fNETConnection* c;
+fNETTunnell* tunnel;
 
 void setup() {
     Serial.begin(115200);
@@ -30,34 +37,28 @@ void setup() {
     if (!adc1.begin(72, &auxI2C)) {
         Serial.println("[fGMS HygroCtl] Can't connect to integrated ADC!");
         fNETModule::SetFatalErrorState();
+        return;
     }
-    else
+    else {
         Serial.println("[fGMS HygroCtl] Connected to integrated ADC.");
+        adc2.setGain(GAIN_ONE);
+
+        adcs[adcNum++] = &adc1;
+    }
 
     if (!adc2.begin(73, &auxI2C))
-        Serial.println("[fGMS HygroCtl] No external ADC.");
+        Serial.println("[fGMS HygroCtl] External ADC 1 not present.");
     else {
-        fNETModule::data["channels"] = 8;
-        Serial.println("[fGMS HygroCtl] Connected to external ADC.");
+        Serial.println("[fGMS HygroCtl] Connected to external ADC 1.");
+        adc2.setGain(GAIN_ONE);
+
+        adcs[adcNum++] = &adc2;
     }
 
-    adc1.setGain(GAIN_ONE);
+    fNETModule::data["channels"] = adcNum * 4;
 
     c->AddQueryResponder("getValues", [](DynamicJsonDocument q) {
-        DynamicJsonDocument resp(256);
-
-        JsonArray a = resp.createNestedArray("values");
-
-        float humidity_0 = adc1.computeVolts(adc1.readADC_SingleEnded(0));
-        float humidity_1 = adc1.computeVolts(adc1.readADC_SingleEnded(1));
-        float humidity_2 = adc1.computeVolts(adc1.readADC_SingleEnded(2));
-        float humidity_3 = adc1.computeVolts(adc1.readADC_SingleEnded(3));
-
-        a.add<float>(humidity_0);
-        a.add<float>(humidity_1);
-        a.add<float>(humidity_2);
-        a.add<float>(humidity_3);
-
+        DynamicJsonDocument resp = GetValueJSON();
         return resp;
         });
 
@@ -70,33 +71,32 @@ void setup() {
         resp["interval"] = String(sendInterval);
         return resp;
         });
+
+    tunnel = new fNETTunnell(c, "data");
+    tunnel->AcceptIncoming();
 }
 
 long lastSentMS;
 long data_id;
 
+DynamicJsonDocument GetValueJSON() {
+    DynamicJsonDocument send(256);
+
+    JsonArray a = send.createNestedArray("hygrometers");
+    for (int adcN = 0; adcN < adcNum; adcN++) {
+        Adafruit_ADS1115* adc = adcs[adcN];
+
+        for (int i = 0; i < 4; i++)
+            a.add<float>(adc->computeVolts(adc->readADC_SingleEnded(i)));
+    }
+
+    return send;
+}
+
 void SendData() {
-    if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 2) {
-        DynamicJsonDocument send(256);
-
-        JsonArray a = send.createNestedArray("values");
-
-        float humidity_0 = adc1.computeVolts(adc1.readADC_SingleEnded(0));
-        float humidity_1 = adc1.computeVolts(adc1.readADC_SingleEnded(1));
-        float humidity_2 = adc1.computeVolts(adc1.readADC_SingleEnded(2));
-        float humidity_3 = adc1.computeVolts(adc1.readADC_SingleEnded(3));
-
-        a.add<float>(humidity_0);
-        a.add<float>(humidity_1);
-        a.add<float>(humidity_2);
-        a.add<float>(humidity_3);
-
-        send["recipient"] = "controller";
-        send["tag"] = "values";
-        send["auto"] = true;
-        send["dataID"] = data_id++;
-
-        c->Send(send);
+    if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 5) {
+        DynamicJsonDocument send = GetValueJSON();
+        tunnel->Send(send);
 
         lastSentMS = millis();
     }
@@ -106,5 +106,5 @@ void loop() {
     delay(100);
 
     SendData();
-    fNETModule::working = sendInterval != 0 && c->GetQueuedMessageCount() <= 2;
+    fNETModule::working = sendInterval != 0 && c->GetQueuedMessageCount() <= 5;
 }

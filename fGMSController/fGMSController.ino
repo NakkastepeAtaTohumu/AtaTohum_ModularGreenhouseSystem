@@ -43,10 +43,15 @@ void setup() {
     DynamicJsonDocument d(256);
     d["state"] = 0b1111;
     JsonObject* result = c->Query("C8:F0:9E:9E:7C:80", "setState", &d);
+
+    //fGMS::SensorModules[0]->SetFan(true);
 }
 
 void loop() {
     Serial.println("Free heap: " + String(ESP.getFreeHeap()));
+    /*char buf[2048];
+    vTaskGetRunTimeStats(buf);;
+    Serial.println(String(buf));*/
     //vTaskDelete(NULL); //loop() is unused
     delay(1000);
 }

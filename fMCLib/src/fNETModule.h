@@ -331,7 +331,15 @@ private:
 
         Serial.println("[fNET fNET] Beginnig I2C as slave with address: " + String(I2C_Address));
 
-        I2C.begin(I2C_Address, fNET_SDA, fNET_SCK, (uint32_t)800000);
+        bool success = I2C.begin(I2C_Address, fNET_SDA, fNET_SCK, (uint32_t)800000);
+
+        if (!success) {
+            Serial.println("[fNET fNET] I2C Failed to begin!");
+            SetFatalErrorState();
+            return;
+        }
+
+        Serial.println("[fNET fNET] I2C ok!");
 
         I2C.onReceive(I2C_TransactionReceive);
 
@@ -565,6 +573,7 @@ private:
         //Serial.println("[fNET I2C] Next message.");
 
         if (I2C_SendBuffer.size() > 0) {
+            //Serial.println("message: " + I2C_SendBuffer.first());
             String packetCountData = PaddedInt(ceil(((double)I2C_SendBuffer.first().length()) / 64.0), 4);
             String messageIDData = PaddedInt(I2C_LastMsgID, 4);
 

@@ -10,6 +10,15 @@ fGMSControllerMenu::I2CConfigsMenu* fGMSControllerMenu::icm;
 fGMSControllerMenu::HygrometerModulesMenu* fGMSControllerMenu::hmm;
 fGMSControllerMenu::ValveModulesMenu* fGMSControllerMenu::vmm;
 fGMSControllerMenu::AlertMenu* fGMSControllerMenu::alertmenu;
+fGMSControllerMenu::GreenhouseSizeConfigMenu* fGMSControllerMenu::gscm;
+fGMSControllerMenu::HygrometersConfigMenu* fGMSControllerMenu::hscm;
+fGMSControllerMenu::GreenhouseModuleConfigTabsMenu* fGMSControllerMenu::gmctm;
+fGMSControllerMenu::HygrometerPositionConfigMenu* fGMSControllerMenu::hpco;
+fGMSControllerMenu::HygrometerConfigMenu* fGMSControllerMenu::hcm;
+fGMSControllerMenu::MoistureMonitorMenu* fGMSControllerMenu::mmm;
+fGMSControllerMenu::MonitorTabsMenu* fGMSControllerMenu::mtm;
+
+//fGMSControllerMenu::HygrometerConfigMenu* fGMSControllerMenu::hcm;
 
 
 NumberInputElement* fGMSControllerMenu::ValveModuleConfigMenu::stateInput;
