@@ -506,23 +506,33 @@ private:
     public:
         void InitializeElements() override {
             stateD = new TextElement("State: " + String(fNETController::I2C_IsEnabled ? "ENABLED" : "DISABLED"), width / 2, 40, 0, 1, TFT_WHITE);
-            freqD = new TextElement("Frequency: " + String(fNETController::I2C_freq), width / 2, 50, 0, 1, TFT_WHITE);
+            freqD = new UncenteredTextElement("Frequency: " + String(fNETController::I2C_freq), 20, 60, 0, 1, TFT_WHITE);
+            discoveryD = new TextElement("Discovery: " + String(fNETController::I2C_DiscoveryEnabled ? "ENABLED" : "DISABLED"), width / 2, 50, 0, 1, TFT_WHITE);
 
-            freqField = new NumberInputElement("Set freq:", width / 2, 70, 0, 1, TFT_WHITE, TFT_DARKGREY);
+            freqField = new NumberInputElement("Set freq:", 20, 74, 0, 1, TFT_WHITE, TFT_DARKGREY);
             freqField->Value = fNETController::I2C_freq / 100000;
 
 
             AddElement(new TextElement("I2C Config", width / 2, 12, 2, 1, TFT_WHITE));
             AddElement(freqD);
             AddElement(stateD);
+            AddElement(discoveryD);
 
             AddElement(freqField);
-            AddElement(new Button("Set frequency", width / 2, 90, 80, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value * 100000);
+            AddElement(new Button("Set f", width / 2 + 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
+                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value * 100000, fNETController::I2C_DiscoveryEnabled);
                 }, ""));
 
-            AddElement(new Button("Toggle I2C", width / 2, 110, 80, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(!fNETController::I2C_IsEnabled, fNETController::I2C_freq);
+            AddElement(new Button("Toggle", width / 2 - 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
+                fNETController::SetI2CState(!fNETController::I2C_IsEnabled, fNETController::I2C_freq, fNETController::I2C_DiscoveryEnabled);
+                }, ""));
+
+            AddElement(new Button("Discovery", width / 2 - 32, 110, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
+                fNETController::SetI2CState(fNETController::I2C_IsEnabled, fNETController::I2C_freq, !fNETController::I2C_DiscoveryEnabled);
+                }, ""));
+
+            AddElement(new Button("Scan", width / 2 + 32, 110, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
+                fNETController::DoScan();
                 }, ""));
 
 
@@ -535,9 +545,11 @@ private:
 
             freqD->t = "Frequency: " + String(fNETController::I2C_freq);
             stateD->t = "State: " + String(fNETController::I2C_IsEnabled ? "ENABLED" : "DISABLED");
+            stateD->t = "State: " + String(fNETController::I2C_DiscoveryEnabled ? "ENABLED" : "DISABLED");
         }
-        TextElement* freqD;
+        UncenteredTextElement* freqD;
         TextElement* stateD;
+        TextElement* discoveryD;
         NumberInputElement* freqField;
     };
 
@@ -891,14 +903,34 @@ private:
 
             stateD->t = hmm->configured->ok ? "OK" : "ERROR";
 
-            String values = "Values: ";
+            if (!hmm->configured->ok) {
+                stateD->t = "ERROR";
 
-            for (int i = 0; i < hmm->configured->Channels; i++)
-                values += String(hmm->configured->Values[i]) + ((i % 4 == 0 && i > 0) ? ",\n" : ", ");
+                if (!hmm->configured->tunnel->IsConnected)
+                    valueD->t = "Tunnel disconnected!";
 
-            valueD->t = values;
+                else if (!hmm->configured->value_received)
+                    valueD->t = "No data received!";
 
-            channelsD->t = String(hmm->configured->Channels);
+                else if (!hmm->configured->mdl->isOnline)
+                    valueD->t = "Module offline!";
+
+                channelsD->t = "";
+            }
+            else {
+                stateD->t = "OK";
+
+
+                String values = "Values: ";
+
+                for (int i = 0; i < hmm->configured->Channels; i++)
+                    values += String(hmm->configured->Values[i]) + ((i % 4 == 0 && i > 0) ? ",\n" : ", ");
+
+                valueD->t = values;
+
+
+                channelsD->t = String(hmm->configured->Channels);
+            }
         }
 
         void Draw() override {
@@ -1004,8 +1036,8 @@ private:
             hde = new HygrometerDisplayElement(nullptr, (GreenhouseDisplayElement*)Elements[1]);
             AddElement(hde);
 
-            x_in = new FloatInputElement("X: ", width / 2 - 32, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
-            y_in = new FloatInputElement("Y: ", width / 2 + 32, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
+            x_in = new FloatInputElement("X: ", 4, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
+            y_in = new FloatInputElement("Y: ", width / 2 + 4, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
 
             AddElement(x_in);
             AddElement(y_in);
@@ -1086,8 +1118,8 @@ private:
         void InitializeElements() override {
             AddElement(new GreenhouseDisplayElement(width / 2, 80, 96, 96, d->color24to16(0x633e1a), TFT_LIGHTGREY));
             ((GreenhouseDisplayElement*)Elements[0])->draw_size = true;
-            x_in = new FloatInputElement("Width: ", width / 2, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
-            y_in = new FloatInputElement("Height: ", width / 2, 152, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
+            x_in = new FloatInputElement("Width: ", 20, 140, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
+            y_in = new FloatInputElement("Height: ", 20, 152, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
 
             AddElement(x_in);
             AddElement(y_in);
@@ -1171,7 +1203,7 @@ private:
 
             //AddElement(new Button("Add", 16, height - 8, 24, 12, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { hscm->AddHygrometer(); }, "Add new hygrometer"));
             AddElement(new PhysicalButton("+", 1, width - 6, 30, 12, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { hscm->AddHygrometer(); }));
-            AddElement(new PhysicalButton("-", 1, width - 6, 30, 12, 24, 0, 1, TFT_BLACK, TFT_RED, []() { hscm->RemoveHygrometer(); }));
+            AddElement(new PhysicalButton("-", 2, width - 6, 65, 12, 24, 0, 1, TFT_BLACK, TFT_RED, []() { hscm->RemoveHygrometer(); }));
 
         }
 
@@ -1243,7 +1275,7 @@ private:
         long lastUpdateMS = 0;
 
     public:
-        HygrometerDisplayElement* selected;
+        HygrometerDisplayElement* selected = nullptr;
 
         void AddHygrometer() {
             fGMS::Hygrometer* h = fGMS::CreateHygrometer();

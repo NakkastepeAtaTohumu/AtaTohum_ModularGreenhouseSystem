@@ -39,8 +39,10 @@ public:
     }
 
     virtual void Invoke(void* args) {
-        for (int i = 0; i < numHandlers; i++)
+        for (int i = 0; i < numHandlers; i++) {
+            delay(0);
             handlers[i]->Handle(args);
+        }
     }
 
     virtual void Invoke() {
@@ -49,7 +51,7 @@ public:
 
 protected:
     EventHandler_d* handlers[128];
-    int numHandlers;
+    int numHandlers = 0;
 };
 
 #endif

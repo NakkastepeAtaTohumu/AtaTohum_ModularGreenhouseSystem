@@ -88,7 +88,7 @@ public:
         if (qd == nullptr)
             qd = new DynamicJsonDocument(256);
 
-        DynamicJsonDocument q = *qd;
+        DynamicJsonDocument q = DynamicJsonDocument(*qd);
 
         int sentQueryID = LastQueryID++;
 
@@ -178,6 +178,7 @@ protected:
             delete ReceivedJSONBuffer.pop();
         }
 
+        delay(0);
         OnMessageReceived.Invoke(&d);
     }
 
@@ -225,37 +226,78 @@ private:
 #warning ne
 
 class fNETTunnel {
+private:
+    class TunnelManager {
+    public:
+        static void Add(fNETTunnel* t) {
+            tunnels[tunnelNum++] = t;
+        }
+
+        static void Init() {
+            xTaskCreate(task, "fNETTunnelTask", 4096, nullptr, 0, nullptr);
+
+            Initialized = true;
+        }
+
+        static void task(void* param) {
+            while (true) {
+                delay(100);
+
+                for (int i = 0; i < tunnelNum; i++)
+                    tunnels[i]->Update();
+            }
+        }
+
+        static bool Initialized;
+
+    private:
+        static fNETTunnel* tunnels[64];
+        static int tunnelNum;
+    };
+
 public:
     fNETTunnel(fNETConnection* connection, String port_name) {
         portName = port_name;
-
         c = connection;
+    }
+
+    void Init() {
+        if (Initialized)
+            return;
+
+        Serial.println("[fNet Tunnel " + portName + "] Initializing.");
+
+        if (!TunnelManager::Initialized)
+            TunnelManager::Init();
+
+        TunnelManager::Add(this);
 
         c->AddQueryResponder("fNETTunnelPort_" + portName, new QueryResponseHandler<fNETTunnel>(this));
-
         c->OnMessageReceived.AddHandler(new EventHandler<fNETTunnel>(this, [](fNETTunnel* t, void* args) { t->HandleMessage(args); }));
+
+        Initialized = true;
     }
 
     void AcceptIncoming() {
+        Serial.println("[fNet Tunnel " + portName + "] Accepting remote requests.");
+
         Accept = true;
     }
 
     void BlockIncoming() {
+        Serial.println("[fNet Tunnel " + portName + "] Blocking remote requests.");
+
         Accept = false;
     }
 
     void Send(DynamicJsonDocument data) {
+        if (!Initialized)
+            return;
+
         if (!IsConnected)
             return;
 
-        DynamicJsonDocument d(8192);
-
-        d["port"] = portName;
-        d["tag"] = "fNETTunnel";
-        d["type"] = "data";
-
-        d["recipient"] = remoteMAC;
-
+        DynamicJsonDocument d = GetMessageFormat("data", 8192);
         d["data"] = data;
 
         c->Send(d);
@@ -266,18 +308,15 @@ public:
     }
 
     bool TryConnect(String remote_MAC) {
+        if (!Initialized)
+            return;
+
         GenerateSessionID();
 
         Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connecting to " + remote_MAC + "...");
 
-        DynamicJsonDocument d(128);
-
-        d["portName"] = portName;
-        d["sessionID"] = sessionID;
-        d["from"] = c->mac;
-        d["type"] = "connection_request";
-
-        JsonObject* result = c->Query(remoteMAC, "fNETTunnelPort_" + portName);
+        DynamicJsonDocument d = GetQueryeFormat("connection_request");
+        JsonObject* result = c->Query(remote_MAC, "fNETTunnelPort_" + portName, &d);
 
         if (result == nullptr)
             return false;
@@ -286,12 +325,11 @@ public:
 
         if (res["status"] != "ok")
             return false;
-        
+
         IsConnected = true;
         Available = false;
 
         remoteMAC = remote_MAC;
-        sessionID = res["sessionID"].as<String>();
 
         Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connected!");
 
@@ -299,28 +337,35 @@ public:
     }
 
     void Disconnect() {
-        DynamicJsonDocument d(128);
+        if (!Initialized)
+            return;
 
-        d["portName"] = portName;
-        d["sessionID"] = sessionID;
-        d["from"] = c->mac;
-        d["type"] = "disconnection_request";
+        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Disconnecting.");
+
+        DynamicJsonDocument d = GetQueryeFormat("disconnection_request");
 
         JsonObject* result = c->Query(remoteMAC, "fNETTunnelPort_" + portName);
     }
 
+protected:
     DynamicJsonDocument HandleQueryResponse(DynamicJsonDocument d) {
-        if (!(d["portName"] == portName))
+        if (!(d["port"] == portName))
             return DynamicJsonDocument(0);
 
         if (d["type"] == "connection_request")
             return HandleConnect(d);
 
-        else if (d["sessionID"] != sessionID)
+        if (d["sessionID"] != sessionID) {
+            if (IsConnected)
+                LostConnection();
+
             return DynamicJsonDocument(0);
+        }
 
         else if (d["type"] == "disconnect_request")
             return HandleDisconnect(d);
+
+        return DynamicJsonDocument(0);
     }
 
     void HandleMessage(void* param) {
@@ -332,8 +377,15 @@ public:
         if (d["source"] != remoteMAC)
             return;
 
-        if (d["port"] != portName || d["sessionID"] != sessionID)
+        if (d["port"] != portName)
             return;
+
+        if (d["sessionID"] != sessionID) {
+            if (IsConnected)
+                LostConnection();
+
+            return;
+        }
 
         lastTransmissionMS = millis();
 
@@ -344,9 +396,11 @@ public:
             receiveHandler(*r);
             delete r;
         }
+        else if(d["type"] == "ping") {
+            Pong();
+        }
     }
 
-protected:
     void GenerateSessionID() {
         uint32_t random = esp_random();
         sessionID = "FNT-" + String((unsigned long)random, 16U);
@@ -358,7 +412,10 @@ protected:
         DynamicJsonDocument r(64);
         r["status"] = "refused";
 
-        if (!(Available && Accept)) 
+        if (!Accept)
+            return r;
+
+        if (!Available && d["from"] != remoteMAC)
             return r;
 
         Available = false;
@@ -376,6 +433,8 @@ protected:
     }
 
     DynamicJsonDocument HandleDisconnect(DynamicJsonDocument d) {
+        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Disconnecting.");
+
         DynamicJsonDocument r(64);
 
         r["status"] = "disconnected";
@@ -389,6 +448,8 @@ protected:
     }
 
     void LostConnection() {
+        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connection closed.");
+
         sessionID = "";
         remoteMAC = "";
 
@@ -398,25 +459,18 @@ protected:
         OnDisconnect.Invoke();
     }
 
-    void task(void* param) {
-        while (true) {
-            delay(100);
+    void Update() {
+        if (!IsConnected)
+            return;
 
-            if (!IsConnected)
-                continue;
-
-            CheckConnection();
-        }
+        CheckConnection();
     }
 
     void Ping() {
-        DynamicJsonDocument d(256);
-
-        d["port"] = portName;
-        d["tag"] = "fNETTunnel";
-        d["type"] = "ping";
-
-        c->Send(d);
+        c->Send(GetMessageFormat("ping"));
+    }
+    void Pong() {
+        c->Send(GetMessageFormat("pong"));
     }
 
     void CheckConnection() {
@@ -430,10 +484,43 @@ protected:
             LostConnection();
     }
 
+
+    DynamicJsonDocument GetMessageFormat(String type) {
+        return GetMessageFormat(type, 256);
+    }
+
+    DynamicJsonDocument GetMessageFormat(String type, int bytes) {
+        DynamicJsonDocument d(bytes);
+
+        d["port"] = portName;
+        d["tag"] = "fNETTunnel";
+        d["type"] = type;
+        d["sessionID"] = sessionID;
+        d["from"] = c->mac;
+
+        d["recipient"] = remoteMAC;
+
+        return d;
+    }
+
+    DynamicJsonDocument GetQueryeFormat(String type) {
+        DynamicJsonDocument d(256);
+
+        d["port"] = portName;
+        d["sessionID"] = sessionID;
+        d["from"] = c->mac;
+        d["type"] = type;
+
+        d["query"] = "fNETTunnelPort_" + portName;
+
+        return d;
+    }
+
 public:
     bool IsConnected = false;
     bool Available = true;
     bool Accept = false;
+    bool Initialized = false;
 
     Event OnConnect;
     Event OnDisconnect;

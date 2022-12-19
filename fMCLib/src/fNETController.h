@@ -577,16 +577,22 @@ public:
         return -1;
     }
 
-    static void SetI2CState(bool enabled, float freq) {
+    static void SetI2CState(bool enabled, float freq, bool discovery) {
         controllerData["isI2CEnabled"] = enabled;
         controllerData["I2CFrequency"] = freq;
+        controllerData["I2CDiscovery"] = discovery;
 
         Save();
         ESP.restart();
     }
 
+    static void DoScan() {
+        I2C_ScanPending = true;
+    }
+
     static float I2C_freq;
     static bool I2C_IsEnabled;
+    static bool I2C_DiscoveryEnabled;
 
     static fNETSlaveConnection* Modules[32];
     static int ModuleCount;
@@ -715,7 +721,6 @@ private:
         }
     }
 
-
     static TwoWire I2C1;
     static TwoWire I2C2;
 
@@ -724,6 +729,7 @@ private:
 
         I2C_IsEnabled = controllerData["isI2CEnabled"].as<bool>();
         I2C_freq = controllerData["I2CFrequency"].as<int>();
+        I2C_DiscoveryEnabled = controllerData["I2CDiscovery"].as<bool>();
 
         if (I2C_IsEnabled) {
             I2C1.begin(fNET_SDA, fNET_SCK, (uint32_t)I2C_freq);
@@ -736,16 +742,21 @@ private:
 
     static long I2C_LastScanMs;
     static long I2C_LastTaskLength;
+    static bool I2C_ScanPending;
 
     static void I2CTask(void* param) {
         while (true) {
             long start = millis();
             I2C_PollModules();
 
-            if (millis() - I2C_LastScanMs > 1000)
+            if (I2C_DiscoveryEnabled && millis() - I2C_LastScanMs > 10000)
                 I2C_ScanModules(&I2C1);
 
             I2C_LastTaskLength = millis() - start;
+
+            if(I2C_ScanPending)
+                I2C_ScanModules(&I2C1);
+
             //Serial.println(I2C_LastTaskLength);
             //delay(100);
         }
@@ -816,6 +827,21 @@ private:
         return mac;
     }
 
+    static bool IsValidMACAddress(String mac) {
+        if (mac[2] != ':' || mac[5] != ':' || mac[8] != ':' || mac[11] != ':' || mac[14] != ':')
+            return false;
+
+        byte a = strtol(mac.substring(0, 2).c_str(), NULL, 16);
+        byte b = strtol(mac.substring(3, 5).c_str(), NULL, 16);
+        byte c = strtol(mac.substring(6, 8).c_str(), NULL, 16);
+        byte d = strtol(mac.substring(9, 11).c_str(), NULL, 16);
+        byte e = strtol(mac.substring(12, 14).c_str(), NULL, 16);
+
+        byte f = strtol(mac.substring(15, 17).c_str(), NULL, 16);
+
+        return a && b && c && d && e && f;
+    }
+
     static int I2C_LocateModule(String mac, TwoWire* wire) {
         for (int i = 16; i < 32; i++) {
             String foundMac = GetMacAddress(i, wire);
@@ -834,9 +860,15 @@ private:
         String scanned[32];
         int amountFound = 0;
 
+        I2C_ScanPending = false;
+
         for (int i = 16; i < 32; i++) {
             //Serial.println("[fNET fNET] Check " + String(i));
             String mac = GetMacAddress(i, wire);
+
+            if (!IsValidMACAddress(mac))
+                continue;
+
             //Serial.println("[fNET fNET] MAC: " + mac);
 
             if (mac == "")
@@ -850,6 +882,11 @@ private:
 
                     Modules[j]->i2c_address = i;
 
+                    found = true;
+                    break;
+                }
+                else if (Modules[j]->i2c_address == i)
+                {
                     found = true;
                     break;
                 }
@@ -885,6 +922,5 @@ private:
         if (m != nullptr)
             m->QueueStr(msg);
     }
-
 };
 #endif

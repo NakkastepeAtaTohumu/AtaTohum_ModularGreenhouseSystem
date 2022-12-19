@@ -83,6 +83,9 @@ public:
             if (Module == nullptr || Channel <= -1)
                 return -1;
 
+            if (!Module->ok)
+                return -1;
+
             if (Channel >= Module->Channels)
                 return -1;
 
@@ -118,6 +121,8 @@ public:
             module_mac = m->MAC_Address;
 
             tunnel = new fNETTunnel(fNETController::Connection, "data");
+            tunnel->Init();
+
             tunnel->OnMessageReceived.AddHandler(new EventHandler<HygrometerModule>(this, [](HygrometerModule* m, void* d) { m->messageReceived(*(DynamicJsonDocument*)d); }));
         }
 
@@ -126,6 +131,8 @@ public:
             mdl = fNETController::GetModuleByMAC(module_mac);
 
             tunnel = new fNETTunnel(fNETController::Connection, "data");
+            tunnel->Init();
+
             tunnel->OnMessageReceived.AddHandler(new EventHandler<HygrometerModule>(this, [](HygrometerModule* m, void* d) { m->messageReceived(*(DynamicJsonDocument*)d); }));
         }
 
@@ -140,11 +147,13 @@ public:
         fNETController::fNETSlaveConnection* mdl = nullptr;
         fNETTunnel* tunnel;
 
-        int Channels = 4;
+        int Channels = -1;
 
         float Values[16];
 
         bool ok;
+
+        bool value_received = false;
 
         void Update() {
             if (mdl == nullptr || !mdl->isOnline) {
@@ -153,20 +162,20 @@ public:
                 return;
             }
 
-            if (!tunnel->IsConnected) {
-                Serial.println("[fGMS Hygrometer Controller] Trying to connect to " + module_mac + ".");
-
-                tunnel->TryConnect(module_mac);
+            if (!tunnel->IsConnected && millis() - lastConnectionAttempt > 10000) {
+                connect();
+                ok = false;
                 return;
             }
 
-
-            if (millis() - lastMessageReceivedMillis > 2000)
+            if (millis() - lastMessageReceivedMillis > 2000) {
                 setInterval();
-            else
-                ok = true;
+                value_received = false;
+                ok = false;
+            }
 
-            checkMessages();
+            if (value_received)
+                ok = true;
         }
 
     private:
@@ -176,13 +185,28 @@ public:
             DynamicJsonDocument d(256);
             d["interval"] = 250;
             JsonObject* result = fNET->Query(module_mac, "setValueInterval", &d);
+
+            lastDataID = 0;
+
             if (result == nullptr) {
                 Serial.println("[fGMS Hygrometer Controller] Setting value interval of module " + module_mac + " failed!");
                 ok = false;
+                return;
             }
 
-            lastDataID = 0;
             lastMessageReceivedMillis = millis();
+        }
+
+        void connect() {
+            Serial.println("[fGMS Hygrometer Controller] Trying to connect to " + module_mac + ".");
+
+            bool res = tunnel->TryConnect(module_mac);
+
+            if (!res)
+                Serial.println("[fGMS Hygrometer Controller] Connection to " + module_mac + " failed!");
+
+            lastConnectionAttempt = millis();
+            return;
         }
 
         void messageReceived(DynamicJsonDocument r) {
@@ -196,6 +220,7 @@ public:
             //Serial.println(Channels);
 
             lastMessageReceivedMillis = millis();
+            value_received = true;
         }
 
         void checkMessages() {
@@ -237,6 +262,7 @@ public:
         }
 
         long lastMessageReceivedMillis = 0;
+        long lastConnectionAttempt = -10000;
         long lastDataID = 0;
     };
 
@@ -408,6 +434,11 @@ public:
 
     static HygrometerModule* AddHygrometerModule(fNETController::fNETSlaveConnection* mdl) {
         Serial.println("[fGMS] Add hygrometer module: " + mdl->MAC_Address);
+
+        for (int i = 0; i < HygrometerModuleCount; i++)
+            if (HygrometerModules[i]->module_mac == mdl->MAC_Address)
+                return;
+
         HygrometerModule* m = new HygrometerModule(mdl);
         HygrometerModules[HygrometerModuleCount++] = m;
 
@@ -425,6 +456,11 @@ public:
 
     static ValveModule* AddValveModule(fNETController::fNETSlaveConnection* mdl) {
         Serial.println("[fGMS] Add valve module: " + mdl->MAC_Address);
+
+        for (int i = 0; i < ValveModuleCount; i++)
+            if (ValveModules[i]->module_mac == mdl->MAC_Address)
+                return;
+
         ValveModule* m = new ValveModule(mdl);
         ValveModules[ValveModuleCount++] = m;
 
@@ -433,6 +469,11 @@ public:
 
     static SensorModule* AddSensorModule(fNETController::fNETSlaveConnection* mdl) {
         Serial.println("[fGMS] Add sensor module: " + mdl->MAC_Address);
+
+        for (int i = 0; i < SensorModuleCount; i++)
+            if (SensorModules[i]->module_mac == mdl->MAC_Address)
+                return;
+
         SensorModule* m = new SensorModule(mdl);
         SensorModules[SensorModuleCount++] = m;
 

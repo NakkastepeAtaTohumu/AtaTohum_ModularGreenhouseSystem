@@ -21,7 +21,7 @@ TwoWire auxI2C(1);
 float sendInterval = 0;
 
 fNETConnection* c;
-fNETTunnell* tunnel;
+fNETTunnel* tunnel;
 
 void setup() {
     Serial.begin(115200);
@@ -72,7 +72,8 @@ void setup() {
         return resp;
         });
 
-    tunnel = new fNETTunnell(c, "data");
+    tunnel = new fNETTunnel(c, "data");
+    tunnel->Init();
     tunnel->AcceptIncoming();
 }
 
@@ -106,5 +107,5 @@ void loop() {
     delay(100);
 
     SendData();
-    fNETModule::working = sendInterval != 0 && c->GetQueuedMessageCount() <= 5;
+    fNETModule::working = tunnel->IsConnected;
 }
