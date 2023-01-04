@@ -17,4 +17,6 @@ fGMS::SensorModule* fGMS::SensorModules[16];
 
 fGMS::Greenhouse fGMS::greenhouse;
 
+bool fGMS::serverEnabled = false;;
+
 fNETConnection* fGMS::fNET = nullptr;

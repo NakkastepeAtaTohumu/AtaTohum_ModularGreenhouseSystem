@@ -180,10 +180,10 @@ public:
 
             trNum++;
             TotalTransactions++;
-            //Serial.println("start transaction " + String(i2c_address));
-            //Serial.println("send: " + send);
-            //Serial.println("trnum: " + String(trNum));
-            //Serial.println("start transact " + String(millis() - start_ms));
+            /*Serial.println("start transaction " + String(i2c_address));
+            Serial.println("send: " + send);
+            Serial.println("trnum: " + String(trNum));
+            Serial.println("start transact " + String(millis() - start_ms));*/
 
             int errcount = 0;
 
@@ -209,12 +209,12 @@ public:
 
                     if (isOnline) {
                         //ESP_LOGV("fNET Module " + MAC_Address," Transaction error ( transmission error )");
-                        //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Error: " + String(err));
+                        Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transaction error ( transmission error ) : " + String(err));
                     }
 
                     if (errcount > 3) {
                         if (isOnline)
-                            ESP_LOGD("fNET fNET, Module: " + MAC_Address, "Transmission failed! ( transmission error )");
+                            Serial.println("[fNET fNET, Module: " + MAC_Address + "]Transmission failed! ( transmission error )");
 
                         FailedTransactions++;
                         if (error != nullptr)
@@ -228,7 +228,7 @@ public:
                     continue;
                 }
 
-                delay(5);
+                delay(4);
                 //Serial.println("req start " + String(millis() - start_ms));
 
                 err = wire->requestFrom((int)i2c_address, 128);
@@ -248,8 +248,8 @@ public:
                 if (receivedTrNum >= trNum)
                     break;
 
-                //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transaction error ( resend )");
-                //Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received: " + read);
+                Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transaction error ( resend )");
+                Serial.println("[fNET fNET, Module: " + MAC_Address + "] Received: " + read);
 
                 if (errcount > 3) {
                     Serial.println("[fNET fNET, Module: " + MAC_Address + "] Transmission failed! ( resend )");
@@ -459,6 +459,8 @@ public:
             String ret = Transaction(wire, "PING", &err);
 
             if (!err && ret.substring(0, 4) == "PONG")
+                lastOKMillis = millis();
+            if(millis() - lastOKMillis < 10000)
                 isOnline = true;
             else
                 isOnline = false;
@@ -469,7 +471,7 @@ public:
                 if (returned_mac != MAC_Address) {
                     Serial.println("[fNET fNET, Module: " + MAC_Address + "] I2C address conflict!");
                     Serial.println("[fNET fNET, Module: " + MAC_Address + "] Conflicting MAC: " + returned_mac);
-                    SetI2CAddr(I2C_GetEmptyAddr(0));
+                    //SetI2CAddr(I2C_GetEmptyAddr(0));
                     return;
                 }
                 else
@@ -483,6 +485,7 @@ public:
         }
 
         long lastCheckedMillis = 0;
+        long lastOKMillis = 0;
 
         int nextI2cAddr = -1;
 
@@ -546,7 +549,12 @@ public:
         String data_serialized;
         serializeJson(data, data_serialized);
 
-        Serial.println("New serialized data: \n" + data_serialized);
+        Serial.println("[fNET Controller] New serialized data: \n" + data_serialized);
+
+        if (data_serialized.length() < 8) {
+            Serial.println("[fNET Controller] Failed to save!");
+            return;
+        }
 
         File data_file = LittleFS.open("/fNET_SystemData.json", "w", true);
         data_file.print(data_serialized.c_str());
@@ -556,14 +564,14 @@ public:
     }
 
     static fNETSlaveConnection* GetModuleByMAC(String mac) {
-        Serial.println("[fNET] Get module: " + mac);
+        //Serial.println("[fNET] Get module: " + mac);
         for (int i = 0; i < ModuleCount; i++) {
             fNETSlaveConnection* d = Modules[i];
 
             if (d->MAC_Address == mac)
                 return d;
         }
-        Serial.println("[fNET] Module not found");
+        //Serial.println("[fNET] Module not found");
         return nullptr;
     }
 
@@ -599,6 +607,21 @@ public:
     static ControllerConnection* Connection;
 
     static String status_d;
+
+    static bool IsValidMACAddress(String mac) {
+        if (mac[2] != ':' || mac[5] != ':' || mac[8] != ':' || mac[11] != ':' || mac[14] != ':')
+            return false;
+
+        byte a = strtol(mac.substring(0, 2).c_str(), NULL, 16);
+        byte b = strtol(mac.substring(3, 5).c_str(), NULL, 16);
+        byte c = strtol(mac.substring(6, 8).c_str(), NULL, 16);
+        byte d = strtol(mac.substring(9, 11).c_str(), NULL, 16);
+        byte e = strtol(mac.substring(12, 14).c_str(), NULL, 16);
+
+        byte f = strtol(mac.substring(15, 17).c_str(), NULL, 16);
+
+        return a && b && c && d && e && f;
+    }
 
 private:
     static void ReadConfig() {
@@ -756,9 +779,8 @@ private:
 
             if(I2C_ScanPending)
                 I2C_ScanModules(&I2C1);
-
             //Serial.println(I2C_LastTaskLength);
-            //delay(100);
+            delay(100);
         }
     }
 
@@ -827,21 +849,6 @@ private:
         return mac;
     }
 
-    static bool IsValidMACAddress(String mac) {
-        if (mac[2] != ':' || mac[5] != ':' || mac[8] != ':' || mac[11] != ':' || mac[14] != ':')
-            return false;
-
-        byte a = strtol(mac.substring(0, 2).c_str(), NULL, 16);
-        byte b = strtol(mac.substring(3, 5).c_str(), NULL, 16);
-        byte c = strtol(mac.substring(6, 8).c_str(), NULL, 16);
-        byte d = strtol(mac.substring(9, 11).c_str(), NULL, 16);
-        byte e = strtol(mac.substring(12, 14).c_str(), NULL, 16);
-
-        byte f = strtol(mac.substring(15, 17).c_str(), NULL, 16);
-
-        return a && b && c && d && e && f;
-    }
-
     static int I2C_LocateModule(String mac, TwoWire* wire) {
         for (int i = 16; i < 32; i++) {
             String foundMac = GetMacAddress(i, wire);
@@ -866,10 +873,11 @@ private:
             //Serial.println("[fNET fNET] Check " + String(i));
             String mac = GetMacAddress(i, wire);
 
+            //Serial.println("[fNET fNET] MAC: " + mac);
             if (!IsValidMACAddress(mac))
                 continue;
+            //Serial.println("[fNET fNET] MAC ok");
 
-            //Serial.println("[fNET fNET] MAC: " + mac);
 
             if (mac == "")
                 continue;
@@ -907,7 +915,7 @@ private:
             if (d != nullptr) {
                 Serial.println("[fNET fNET] Found module " + mac + " at address 0x01");
                 d->i2c_address = 0x01;
-                d->SetI2CAddr(I2C_GetEmptyAddr(0));
+                //d->SetI2CAddr(I2C_GetEmptyAddr(0));
             }
             else {
                 Serial.println("[fNET fNET] Found NEW module " + mac + " at address 0x01");

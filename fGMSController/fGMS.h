@@ -5,6 +5,9 @@
 
 #include "fNETLib.h"
 #include "ArduinoJson.h"
+#include "FS.h"
+
+using namespace fs;
 
 class fGMS {
 public:
@@ -104,6 +107,19 @@ public:
 
     class HygrometerGroup {
     public:
+        HygrometerGroup(JsonObject o) {
+            JsonArray idsArray = o["hygrometers"];
+
+            for (int i : idsArray)
+                hygrometers[numHygrometers++] = GetHygrometer(i);
+
+            color = o["color"].as<int>();
+        }
+
+        HygrometerGroup() {
+
+        }
+
         Hygrometer* hygrometers[128];
         int numHygrometers = 0;
 
@@ -111,6 +127,39 @@ public:
 
         void AddHygrometer(Hygrometer* h) {
             hygrometers[numHygrometers++] = h;
+        }
+
+        void RemoveHygrometer(Hygrometer* h) {
+            int i = -1;
+            for (int index = 0; index < numHygrometers; index++) {
+                if (hygrometers[index] == h)
+                {
+                    i = index;
+                    break;
+                }
+            }
+
+            if (i == -1)
+                return;
+
+
+            for (int index = i; index < numHygrometers - 1; index++)
+                hygrometers[index] = hygrometers[index + 1];
+
+            numHygrometers--;
+        }
+
+        DynamicJsonDocument Save() {
+            DynamicJsonDocument o(128);
+
+            JsonArray hygros = o.createNestedArray("hygrometers");
+
+            for (int j = 0; j < numHygrometers; j++)
+                hygros.add(hygrometers[j]->id);
+
+            o["color"] = color;
+
+            return o;
         }
     };
 
@@ -158,18 +207,23 @@ public:
         void Update() {
             if (mdl == nullptr || !mdl->isOnline) {
                 ok = false;
-                lastDataID = 0;
                 return;
             }
 
             if (!tunnel->IsConnected && millis() - lastConnectionAttempt > 10000) {
                 connect();
-                ok = false;
+                setInterval();
+                ok = tunnel->IsConnected;
                 return;
             }
 
-            if (millis() - lastMessageReceivedMillis > 2000) {
+            if (!tunnel->IsConnected)
+                return;
+
+            if (millis() - lastMessageReceivedMillis > 10000)
                 setInterval();
+
+            if (millis() - lastMessageReceivedMillis > 60000) {
                 value_received = false;
                 ok = false;
             }
@@ -183,10 +237,8 @@ public:
             Serial.println("[fGMS Hygrometer Controller] Setting value interval of module " + module_mac);
 
             DynamicJsonDocument d(256);
-            d["interval"] = 250;
+            d["interval"] = 1000;
             JsonObject* result = fNET->Query(module_mac, "setValueInterval", &d);
-
-            lastDataID = 0;
 
             if (result == nullptr) {
                 Serial.println("[fGMS Hygrometer Controller] Setting value interval of module " + module_mac + " failed!");
@@ -263,7 +315,6 @@ public:
 
         long lastMessageReceivedMillis = 0;
         long lastConnectionAttempt = -10000;
-        long lastDataID = 0;
     };
 
     class ValveModule {
@@ -320,16 +371,28 @@ public:
         SensorModule(fNETController::fNETSlaveConnection* m) {
             mdl = m;
             module_mac = m->MAC_Address;
+
+            tunnel = new fNETTunnel(fNETController::Connection, "data");
+            tunnel->Init();
+
+            tunnel->OnMessageReceived.AddHandler(new EventHandler<SensorModule>(this, [](SensorModule* m, void* d) { m->messageReceived(*(DynamicJsonDocument*)d); }));
         }
 
         SensorModule(JsonObject o) {
             module_mac = o["mac"].as<String>();
             mdl = fNETController::GetModuleByMAC(module_mac);
+            prev_s = o["fanState"];
+
+            tunnel = new fNETTunnel(fNETController::Connection, "data");
+            tunnel->Init();
+
+            tunnel->OnMessageReceived.AddHandler(new EventHandler<SensorModule>(this, [](SensorModule* m, void* d) { m->messageReceived(*(DynamicJsonDocument*)d); }));
         }
 
         DynamicJsonDocument Save() {
             DynamicJsonDocument d = DynamicJsonDocument(256);
             d["mac"] = module_mac;
+            d["fanState"] = FanState;
 
             return d;
         }
@@ -337,13 +400,42 @@ public:
 
         String module_mac = "";
         fNETController::fNETSlaveConnection* mdl = nullptr;
+        fNETTunnel* tunnel;
 
-        int State = 0b0000;
+        bool FanState = false;
 
         bool ok;
 
+        float ppm, temp, humidity;
+
         void Update() {
-            ok = !(mdl == nullptr || !mdl->isOnline);
+            if (mdl == nullptr || !mdl->isOnline) {
+                ok = false;
+                return;
+            }
+
+            if (!tunnel->IsConnected && millis() - lastConnectionAttempt > 10000) {
+                connect();
+                ok = false;
+                return;
+            }
+
+            if (!tunnel->IsConnected)
+                return;
+
+            if (millis() - lastMessageReceivedMillis > 2000) {
+                setInterval();
+                value_received = false;
+                ok = false;
+            }
+
+            if (value_received)
+                ok = true;
+
+            if (ok && !prevSApplied) {
+                SetFan(prev_s);
+                prevSApplied = true;
+            }
         }
 
         void SetFan(bool on) {
@@ -358,10 +450,65 @@ public:
                 ok = false;
             }
             else
-                State = (*result)["enabled"].as<int>();
+                FanState = (*result)["enabled"].as<String>() != "0";
+
+            String d_s;
+            serializeJson(*result, d_s);
+            Serial.println("res: " + d_s);
+            Serial.println("state:" + String(FanState));
 
             delay(100);
         }
+
+        bool prevSApplied = false;
+        bool prev_s = false;
+
+        bool value_received = false;
+
+    private:
+        void setInterval() {
+            Serial.println("[fGMS Sensor Controller] Setting value interval of module " + module_mac);
+
+            DynamicJsonDocument d(256);
+            d["interval"] = 1000;
+            JsonObject* result = fNET->Query(module_mac, "setValueInterval", &d);
+
+            if (result == nullptr) {
+                Serial.println("[fGMS Sensor Controller] Setting value interval of module " + module_mac + " failed!");
+                ok = false;
+                return;
+            }
+
+            lastMessageReceivedMillis = millis();
+        }
+
+        void connect() {
+            Serial.println("[fGMS Sensor Controller] Trying to connect to " + module_mac + ".");
+
+            bool res = tunnel->TryConnect(module_mac);
+
+            if (!res)
+                Serial.println("[fGMS Sensor Controller] Connection to " + module_mac + " failed!");
+
+            lastConnectionAttempt = millis();
+            return;
+        }
+
+        void messageReceived(DynamicJsonDocument r) {
+            int i = 0;
+
+            ppm = r["co2PPM"];
+            temp = r["temp"];
+            humidity = r["humidity"];
+
+            //Serial.println(Channels);
+
+            lastMessageReceivedMillis = millis();
+            value_received = true;
+        }
+
+        long lastMessageReceivedMillis = 0;
+        long lastConnectionAttempt = -10000;
     };
 
     static fNETConnection* fNET;
@@ -409,6 +556,10 @@ public:
     }
 
     static void RemoveHygrometer(int i) {
+        for (int idx = 0; idx < HygrometerGroupCount; idx++) {
+            HygrometerGroups[idx]->RemoveHygrometer(Hygrometers[i]);
+        }
+
         delete Hygrometers[i];
         for (int index = i; index < HygrometerCount - 1; index++) {
             Hygrometers[index]->id--;
@@ -416,6 +567,14 @@ public:
         }
 
         HygrometerCount--;
+    }
+
+    static void RemoveHygrometerGroup(int i) {
+        delete HygrometerGroups[i];
+        for (int index = i; index < HygrometerGroupCount - 1; index++)
+            HygrometerGroups[index] = HygrometerGroups[index + 1];
+
+        HygrometerGroupCount--;
     }
 
     static HygrometerGroup* CreateHygrometerGroup() {
@@ -437,7 +596,7 @@ public:
 
         for (int i = 0; i < HygrometerModuleCount; i++)
             if (HygrometerModules[i]->module_mac == mdl->MAC_Address)
-                return;
+                return nullptr;
 
         HygrometerModule* m = new HygrometerModule(mdl);
         HygrometerModules[HygrometerModuleCount++] = m;
@@ -459,7 +618,7 @@ public:
 
         for (int i = 0; i < ValveModuleCount; i++)
             if (ValveModules[i]->module_mac == mdl->MAC_Address)
-                return;
+                return nullptr;
 
         ValveModule* m = new ValveModule(mdl);
         ValveModules[ValveModuleCount++] = m;
@@ -472,7 +631,7 @@ public:
 
         for (int i = 0; i < SensorModuleCount; i++)
             if (SensorModules[i]->module_mac == mdl->MAC_Address)
-                return;
+                return nullptr;
 
         SensorModule* m = new SensorModule(mdl);
         SensorModules[SensorModuleCount++] = m;
@@ -492,109 +651,60 @@ public:
 
     static void Save() {
         Serial.println("[fGMS] Saving...");
-        DynamicJsonDocument* data = new DynamicJsonDocument(65535);
+        DynamicJsonDocument data(8191);
 
-        JsonArray hygrometersArray = data->createNestedArray("hygrometers");
+        JsonArray hygrometersArray = data.createNestedArray("hygrometers");
 
-        for (int i = 0; i < HygrometerCount; i++)
-            hygrometersArray.add(Hygrometers[i]->Save().as<JsonObject>());
 
-        JsonArray groupsArray = data->createNestedArray("groups");
-
-        for (int i = 0; i < HygrometerGroupCount; i++) {
-            JsonObject o = groupsArray.createNestedObject();
-            HygrometerGroup* g = HygrometerGroups[i];
-
-            JsonArray hygros = o.createNestedArray("hygrometers");
-
-            for (int j = 0; j < g->numHygrometers; j++)
-                hygros.add(g->hygrometers[j]->id);
-
-            o["color"] = g->color;
+        for (int i = 0; i < HygrometerCount; i++) {
+            JsonObject o = Hygrometers[i]->Save().as<JsonObject>();
+            hygrometersArray.add(o);
         }
 
-        JsonArray hygrometerModulesArray = data->createNestedArray("hygrometerModules");
+        JsonArray groupsArray = data.createNestedArray("groups");
+
+        for (int i = 0; i < HygrometerGroupCount; i++) {
+            JsonObject o = HygrometerGroups[i]->Save().as<JsonObject>();
+            groupsArray.add(o);
+        }
+        JsonArray hygrometerModulesArray = data.createNestedArray("hygrometerModules");
 
         for (int i = 0; i < HygrometerModuleCount; i++)
             hygrometerModulesArray.add(HygrometerModules[i]->Save().as<JsonObject>());
 
-        JsonArray valveModulesArray = data->createNestedArray("valveModules");
+        JsonArray valveModulesArray = data.createNestedArray("valveModules");
 
         for (int i = 0; i < ValveModuleCount; i++)
             valveModulesArray.add(ValveModules[i]->Save().as<JsonObject>());
 
-        JsonArray sensorModulesArray = data->createNestedArray("sensorModules");
+        JsonArray sensorModulesArray = data.createNestedArray("sensorModules");
 
         for (int i = 0; i < SensorModuleCount; i++)
             sensorModulesArray.add(SensorModules[i]->Save().as<JsonObject>());
 
-        (*data)["greenhouseSizeX"] = greenhouse.x_size;
-        (*data)["greenhouseSizeY"] = greenhouse.y_size;
+        data["greenhouseSizeX"] = greenhouse.x_size;
+        data["greenhouseSizeY"] = greenhouse.y_size;
+
+        data["serverEnabled"] = serverEnabled;
 
         String data_serialized;
-        serializeJson(*data, data_serialized);
+        serializeJsonPretty(data, data_serialized);
 
-        Serial.println("[fGMS] New serialized data: \n" + data_serialized);
+        Serial.println("[fGMS] Saved data: " + data_serialized);
+
+        if (data.overflowed()) {
+            Serial.println("[fGMS] Failed to save!");
+            return;
+        }
 
         File data_file = LittleFS.open("/fGMS_Data.json", "w", true);
         data_file.print(data_serialized.c_str());
         data_file.close();
 
-        delete data;
         Serial.println("[fGMS] Saved.");
     }
 
-    static void ReadConfig() {
-        bool mounted = LittleFS.begin();
-
-        if (!mounted)
-            return;
-
-        File data_file = LittleFS.open("/fGMS_Data.json", "r");
-
-        if (!data_file)
-            return;
-
-        DynamicJsonDocument data(32767);
-
-        String data_rawJson = data_file.readString();
-        deserializeJson(data, data_rawJson);
-        Serial.println("[fGMS] Read config: " + data_rawJson);
-
-        HygrometerCount = 0;
-        HygrometerGroupCount = 0;
-
-        HygrometerModuleCount = 0;
-        ValveModuleCount = 0;
-        SensorModuleCount = 0;
-
-        for (JsonObject o : data["groups"].as<JsonArray>()) {
-            HygrometerGroup* h = CreateHygrometerGroup();
-            JsonArray idsArray = data["hygrometers"];
-
-            for (int i : idsArray)
-                h->hygrometers[h->numHygrometers++] = GetHygrometer(i);
-
-            h->color = o["color"].as<int>();
-        }
-
-        for (JsonObject o : data["hygrometerModules"].as<JsonArray>())
-            HygrometerModules[HygrometerModuleCount++] = new HygrometerModule(o);
-
-        for (JsonObject o : data["valveModules"].as<JsonArray>())
-            ValveModules[ValveModuleCount++] = new ValveModule(o);
-
-        for (JsonObject o : data["sensorModules"].as<JsonArray>())
-            SensorModules[SensorModuleCount++] = new SensorModule(o);
-
-        for (JsonObject o : data["hygrometers"].as<JsonArray>())
-            Hygrometers[HygrometerCount++] = new Hygrometer(o);
-
-        greenhouse.x_size = data["greenhouseSizeX"];
-        greenhouse.y_size = data["greenhouseSizeY"];
-
-        Serial.println("[fGMS] Loaded");
-    }
+    static bool serverEnabled;
 
 private:
     static void moduleUpdateTask(void* param) {
@@ -632,7 +742,7 @@ private:
 
             bool skip = false;
             for (int i = 0; i < HygrometerModuleCount; i++)
-                if (HygrometerModules[i]->mdl->MAC_Address == c->MAC_Address) {
+                if (HygrometerModules[i]->module_mac == c->MAC_Address) {
                     skip = true;
                     break;
                 }
@@ -694,6 +804,122 @@ private:
             AddSensorModule(c);
             Save();
         }
+    }
+
+    static void LoadHygrometerModule(JsonObject o) {
+        HygrometerModule* m = new HygrometerModule(o);
+
+        if (!fNETController::IsValidMACAddress(m->module_mac)) {
+            delete m;
+            return;
+        }
+
+        if (m->mdl == nullptr) {
+            delete m;
+            return;
+        }
+
+        for (int i = 0; i < HygrometerModuleCount; i++) {
+            if (HygrometerModules[i]->module_mac == m->module_mac) {
+                delete m;
+                return;
+            }
+        }
+
+        HygrometerModules[HygrometerModuleCount++] = m;
+    }
+
+    static void LoadValveModule(JsonObject o) {
+        ValveModule* m = new ValveModule(o);
+
+        if (!fNETController::IsValidMACAddress(m->module_mac)) {
+            delete m;
+            return;
+        }
+
+        if (m->mdl == nullptr) {
+            delete m;
+            return;
+        }
+
+        for (int i = 0; i < ValveModuleCount; i++) {
+            if (ValveModules[i]->module_mac == m->module_mac) {
+                delete m;
+                return;
+            }
+        }
+
+        ValveModules[ValveModuleCount++] = m;
+    }
+
+    static void LoadSensorModule(JsonObject o) {
+        SensorModule* m = new SensorModule(o);
+
+        if (!fNETController::IsValidMACAddress(m->module_mac)) {
+            delete m;
+            return;
+        }
+
+        if (m->mdl == nullptr) {
+            delete m;
+            return;
+        }
+
+        for (int i = 0; i < SensorModuleCount; i++) {
+            if (SensorModules[i]->module_mac == m->module_mac) {
+                delete m;
+                return;
+            }
+        }
+
+        SensorModules[SensorModuleCount++] = m;
+    }
+
+    static void ReadConfig() {
+        bool mounted = LittleFS.begin();
+
+        if (!mounted)
+            return;
+
+        fs::File data_file = LittleFS.open("/fGMS_Data.json", "r");
+
+        if (!data_file)
+            return;
+
+        DynamicJsonDocument data(32767);
+
+        String data_rawJson = data_file.readString();
+        deserializeJson(data, data_rawJson);
+        Serial.println("[fGMS] Read config: " + data_rawJson);
+
+        HygrometerCount = 0;
+        HygrometerGroupCount = 0;
+
+        HygrometerModuleCount = 0;
+        ValveModuleCount = 0;
+        SensorModuleCount = 0;
+
+        for (JsonObject o : data["hygrometerModules"].as<JsonArray>())
+            LoadHygrometerModule(o);
+
+        for (JsonObject o : data["valveModules"].as<JsonArray>())
+            LoadValveModule(o);
+
+        for (JsonObject o : data["sensorModules"].as<JsonArray>())
+            LoadSensorModule(o);
+
+        for (JsonObject o : data["hygrometers"].as<JsonArray>())
+            Hygrometers[HygrometerCount++] = new Hygrometer(o);
+
+        for (JsonObject o : data["groups"].as<JsonArray>())
+            HygrometerGroups[HygrometerGroupCount++] = new HygrometerGroup(o);
+
+        greenhouse.x_size = data["greenhouseSizeX"];
+        greenhouse.y_size = data["greenhouseSizeY"];
+
+        serverEnabled = data["serverEnabled"];
+
+        Serial.println("[fGMS] Loaded");
     }
 };
 

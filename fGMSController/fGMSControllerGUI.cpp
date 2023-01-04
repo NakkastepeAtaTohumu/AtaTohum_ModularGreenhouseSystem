@@ -17,6 +17,8 @@ fGMSControllerMenu::HygrometerPositionConfigMenu* fGMSControllerMenu::hpco;
 fGMSControllerMenu::HygrometerConfigMenu* fGMSControllerMenu::hcm;
 fGMSControllerMenu::MoistureMonitorMenu* fGMSControllerMenu::mmm;
 fGMSControllerMenu::MonitorTabsMenu* fGMSControllerMenu::mtm;
+fGMSControllerMenu::SensorModulesMenu* fGMSControllerMenu::smm;
+fGMSControllerMenu::SensorModuleConfigMenu* fGMSControllerMenu::smcm;
 
 //fGMSControllerMenu::HygrometerConfigMenu* fGMSControllerMenu::hcm;
 

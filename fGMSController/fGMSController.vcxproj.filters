@@ -30,6 +30,9 @@
     <ClInclude Include="fGMSDeviceDriver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="fGMSServer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fGMSControllerGUI.cpp">
@@ -39,6 +42,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="fGMSDeviceDriver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fGMSServer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

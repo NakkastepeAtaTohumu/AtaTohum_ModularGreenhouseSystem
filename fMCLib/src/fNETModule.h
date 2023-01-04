@@ -16,7 +16,7 @@
 #include "fNETMessages.h"
 #include "fNET.h"
 
-#define fNET_ModuleTimeoutMS 2500
+#define fNET_ModuleTimeoutMS 10000
 
 enum fNETModuleState {
     CONNECTED_WORKING = 10,
@@ -161,6 +161,9 @@ private:
 
             if (err)
                 State = CONNECTED_ERR;
+
+            if (fatal_err)
+                State = FATAL_ERROR;
         }
         else {
             State = DISCONNECTED;

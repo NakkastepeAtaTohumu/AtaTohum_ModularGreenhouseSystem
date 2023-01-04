@@ -20,6 +20,7 @@ float sendInterval = 0;
 bool fanOn = false;
 
 fNETConnection* c;
+fNETTunnel* tunnel;
 
 byte CO2UART_GetCheckSum(byte* packet)
 {
@@ -149,23 +150,36 @@ void setup() {
         resp["enabled"] = String(fanOn);
         return resp;
         });
+
+    tunnel = new fNETTunnel(c, "data");
+    tunnel->Init();
+    tunnel->AcceptIncoming();
 }
 
 long lastSentMS;
 long data_id;
 
+DynamicJsonDocument GetValueJSON() {
+    DynamicJsonDocument send(256);
+
+    send["co2PPM"] = ReadCO2FromSensor();
+
+    float temperature, humidity;
+    airSensor.readBoth(&temperature, &humidity);
+
+    send["temp"] = temperature;
+    send["humidity"] = humidity;
+
+    return send;
+}
+
 void SendData() {
     if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 2) {
-        DynamicJsonDocument send(256);
-
-        send["recipient"] = "controller";
-        send["tag"] = "values";
-        send["auto"] = true;
-        send["dataID"] = data_id++;
-
-        c->Send(send);
+        DynamicJsonDocument send = GetValueJSON();
+        tunnel->Send(send);
 
         lastSentMS = millis();
+        //Serial.println("send data ok");
     }
 }
 
@@ -173,5 +187,6 @@ void loop() {
     delay(100);
 
     SendData();
-    fNETModule::working = sendInterval != 0 && c->GetQueuedMessageCount() <= 2;
+    fNETModule::working = tunnel->IsConnected;
+    //Serial.println("loop ok");
 }

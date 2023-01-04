@@ -3,12 +3,22 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <WiFi.h>
+
+
+#include <TFT_eSPI.h>
+#include <ESP32Encoder.h>
+
 #include "fNETLib.h"
 #include "fGUILib.h"
 
 #include <ESP32Encoder.h>
 #include "fGMSControllerGUI.h"
 #include "fGMS.h"
+
+#include <ESPmDNS.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include "fGMSServer.h"
 
 //#include "fSerialParser.h"
 
@@ -36,11 +46,33 @@ void setup() {
         ESP.restart();
         });*/
 
-    fGMSControllerMenu::Init();
     fNETConnection* c = fNETController::Init();
     fGMS::Init(c);
 
+
     //fGMS::SensorModules[0]->SetFan(true);
+
+
+    if (fGMS::serverEnabled) {
+        WiFi.mode(WIFI_STA);
+        //WiFi.softAP("AtaTohum_MGMS", "16777216");
+        WiFi.setHostname("main");
+        WiFi.hostname("main");
+        WiFi.begin("ARMATRON_NETWORK", "16777216");
+
+        MDNS.begin("main");
+
+        fGMSServer::Init();
+
+        fGMS::serverEnabled = false;
+        fGMS::Save();
+    }
+    else {
+        fGMSControllerMenu::Init();
+    }
+
+    //fGMS::Hygrometer* h = fGMS::CreateHygrometer();
+    //fGMS::Save();
 }
 
 void loop() {
@@ -52,5 +84,5 @@ void loop() {
     vTaskGetRunTimeStats(buf);;
     Serial.println(String(buf));*/
 
-    delay(30000);
+    delay(2500);
 }

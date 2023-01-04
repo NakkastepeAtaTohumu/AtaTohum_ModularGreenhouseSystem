@@ -37,7 +37,6 @@ void setup() {
     if (!adc1.begin(72, &auxI2C)) {
         Serial.println("[fGMS HygroCtl] Can't connect to integrated ADC!");
         fNETModule::SetFatalErrorState();
-        return;
     }
     else {
         Serial.println("[fGMS HygroCtl] Connected to integrated ADC.");
@@ -87,19 +86,23 @@ DynamicJsonDocument GetValueJSON() {
     for (int adcN = 0; adcN < adcNum; adcN++) {
         Adafruit_ADS1115* adc = adcs[adcN];
 
-        for (int i = 0; i < 4; i++)
-            a.add<float>(adc->computeVolts(adc->readADC_SingleEnded(i)));
+        for (int i = 0; i < 4; i++) {
+            float d = adc->computeVolts(adc->readADC_SingleEnded(i));
+            //Serial.println("REad:" + String(i) + "=" + String(d));
+            a.add<float>(d);
+        }
     }
 
     return send;
 }
 
 void SendData() {
-    if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 5) {
+    if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 2) {
         DynamicJsonDocument send = GetValueJSON();
         tunnel->Send(send);
 
         lastSentMS = millis();
+        //Serial.println("send data ok");
     }
 }
 
@@ -108,4 +111,5 @@ void loop() {
 
     SendData();
     fNETModule::working = tunnel->IsConnected;
+    //Serial.println("loop ok");
 }

@@ -8,8 +8,8 @@ private:
     class TitleMenu : public fGUIElementMenu {
     public:
         void InitializeElements() {
-            AddElement(new TextElement("fGMS", width / 2, 20, 4, 1, TFT_GOLD));
-            AddElement(new TextElement("Greenhouse System", width / 2, 32, 0, 1, TFT_GOLD));
+            AddElement(new TextElement("AtaTohum", width / 2, 20, 4, 1, TFT_GOLD));
+            AddElement(new TextElement("MGMS Greenhouse", width / 2, 32, 0, 1, TFT_GOLD));
 
             //AddElement(new Button("Monitor", width / 2, 74, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {fGUI::OpenMenu(1); }));
             //AddElement(new Button("Config", width / 2, 107, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
@@ -18,7 +18,8 @@ private:
             AddElement(new Button("M", 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() { fGUI::OpenMenu(20); }, "Monitor"));
             AddElement(new Button("C", width / 2, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() { fGUI::OpenMenu(10); }, "Config"));
             AddElement(new Button("L", width - 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {}, "Logs"));
-            AddElement(new Button("D", width - 24, 112, 32, 32, 2, 1, TFT_BLACK, TFT_DARKGREY, []() { fGUI::OpenMenu(1); }, "Debug"));
+            AddElement(new Button("S", 24, 112, 32, 32, 2, 1, TFT_BLACK, TFT_GREEN, []() { fGUI::OpenMenu(23); }, "Enable Server"));
+            AddElement(new Button("D", width / 2, 112, 32, 32, 2, 1, TFT_BLACK, TFT_DARKGREY, []() { fGUI::OpenMenu(1); }, "Debug"));
 
             AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
         }
@@ -151,15 +152,15 @@ private:
             if (!mdl->valid)
                 mm->RemoveModule();
 
-            if (millis() > 10000) {
+            if (millis() > 12500) {
                 if (isOnline && !wasOnline)
                 {
-                    alertmenu->updateMessage(type + " " + String(id), "Module connected.");
+                    alertmenu->updateMessage(name + " " + String(id), "Module connected.");
                     fGUI::OpenMenu(alertmenuid);
                 }
 
                 if (!isOnline && wasOnline) {
-                    alertmenu->updateMessage(type + " " + String(id), "Module disconnected!");
+                    alertmenu->updateMessage(name + " " + String(id), "Module disconnected!");
                     fGUI::OpenMenu(alertmenuid);
                 }
             }
@@ -509,8 +510,10 @@ private:
             freqD = new UncenteredTextElement("Frequency: " + String(fNETController::I2C_freq), 20, 60, 0, 1, TFT_WHITE);
             discoveryD = new TextElement("Discovery: " + String(fNETController::I2C_DiscoveryEnabled ? "ENABLED" : "DISABLED"), width / 2, 50, 0, 1, TFT_WHITE);
 
-            freqField = new NumberInputElement("Set freq:", 20, 74, 0, 1, TFT_WHITE, TFT_DARKGREY);
-            freqField->Value = fNETController::I2C_freq / 100000;
+            freqField = new FloatInputElement("Set freq:", 20, 74, 0, 1, TFT_WHITE, TFT_DARKGREY);
+            freqField->Value = fNETController::I2C_freq / 10000;
+
+            freqField->step = 10000;
 
 
             AddElement(new TextElement("I2C Config", width / 2, 12, 2, 1, TFT_WHITE));
@@ -520,7 +523,7 @@ private:
 
             AddElement(freqField);
             AddElement(new Button("Set f", width / 2 + 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value * 100000, fNETController::I2C_DiscoveryEnabled);
+                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value, fNETController::I2C_DiscoveryEnabled);
                 }, ""));
 
             AddElement(new Button("Toggle", width / 2 - 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
@@ -550,7 +553,7 @@ private:
         UncenteredTextElement* freqD;
         TextElement* stateD;
         TextElement* discoveryD;
-        NumberInputElement* freqField;
+        FloatInputElement* freqField;
     };
 
     class HygrometerModuleListElement : public ListElement {
@@ -653,11 +656,62 @@ private:
         String name;
     };
 
+    class SensorModuleListElement : public ListElement {
+    public:
+        SensorModuleListElement(fGMS::SensorModule* md) {
+            mdl = md;
+            isSelectable = false;
+
+            Update();
+        }
+
+        int Draw(int x, int y) override {
+            d->setTextFont(2);
+
+            //uint16_t bgc = d->color24to16(0x303030);
+            uint16_t bgc = mdl->ok ? d->color24to16(0x505050) : TFT_RED;
+
+
+            if (isHighlighted)
+                d->setTextColor(TFT_WHITE, TFT_DARKGREY, true);
+            else if (!isSelected && mdl->ok)
+                d->setTextColor(TFT_WHITE, TFT_GREEN, true);
+            else
+                d->setTextColor(TFT_WHITE, bgc, true);
+
+            d->setTextSize(1);
+            //DrawTextCentered(d, t, x, y - (d->fontHeight() / 2));
+            d->setCursor(x, y);
+
+            d->print(name);// +": " + (mdl->ok ? "OK" : "ERROR"));
+            return d->fontHeight() + 2;
+        }
+
+        void OnHighlight() override {
+            smm->configured = mdl;
+            smm->configured_element = this;
+        }
+
+        void OnClick() override {
+            fGUI::CloseMenuOnTop();
+            fGUI::OpenMenu(22);
+        }
+
+        void Update() {
+            name = mdl->mdl->Config["name"].as<String>();
+        }
+
+        fGMS::SensorModule* mdl;
+
+        String name;
+    };
+
     class GreenhouseModuleConfigTabsMenu : public fGUIElementMenu {
     public:
         void InitializeElements() override {
             AddElement(new PhysicalButton("Hyg", 1, width - 12, 30, 24, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenuOnTop(9); }));
             AddElement(new PhysicalButton("Vlv", 2, width - 12, 65, 24, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenuOnTop(12); }));
+            AddElement(new PhysicalButton("Sns", 3, width - 12, 98, 24, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenuOnTop(21); }));
             //AddElement(new PhysicalButton("C", 3, width - 12, 98, 12, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
             //AddElement(new PhysicalButton("L", 4, width - 12, 136, 12, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
 
@@ -795,8 +849,6 @@ private:
             modulePresent = true;
 
             AddElement(new ValveModuleListElement(c));
-
-            bg = false;
         }
 
         void RemoveModule(int i) {
@@ -809,6 +861,7 @@ private:
             AddElement(new ListTextElement("No valve modules.", 2, 1, TFT_WHITE, TFT_BLACK));
 
             start_x = 16;
+            bg = false;
         }
 
         void Enter() override {
@@ -865,6 +918,92 @@ private:
 
         fGMS::ValveModule* configured;
         ValveModuleListElement* configured_element;
+
+    private:
+        bool addedModules = false;
+        bool modulePresent = false;
+
+        long lastUpdateMillis = 0;
+    };
+
+    class SensorModulesMenu : public ListMenu {
+    public:
+        void AddModule(fGMS::SensorModule* c) {
+            if (!modulePresent)
+                RemoveElement(0);
+
+            modulePresent = true;
+
+            AddElement(new SensorModuleListElement(c));
+        }
+
+        void RemoveModule(int i) {
+            RemoveElement(i);
+        }
+
+        void InitializeElements() {
+            uint16_t c = d->color24to16(0x303030);
+
+            AddElement(new ListTextElement("No sensor modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+
+            start_x = 16;
+            bg = false;
+        }
+
+        void Enter() override {
+            ListMenu::Enter();
+
+            if (numElements == 0) {
+                AddElement(new ListTextElement("No sensor modules.", 2, 1, TFT_WHITE, TFT_BLACK));
+                modulePresent = false;
+            }
+        }
+
+        void Draw() override {
+            ListMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 1000) {
+                UpdateElements();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        void UpdateElements() {
+            for (int i = 0; i < fGMS::SensorModuleCount; i++) {
+                fGMS::SensorModule* m = fGMS::SensorModules[i];
+
+                if (modulePresent) {
+                    bool skip = false;
+                    for (int i = 0; i < numElements; i++)
+                        if (((SensorModuleListElement*)elements[i])->mdl == m) {
+                            skip = true;
+                            break;
+                        }
+
+
+                    if (skip)
+                        continue;
+                }
+
+                AddModule(m);
+            }
+
+            if (!modulePresent)
+                return;
+            /*
+            for (int i = 0; i < numElements; i++)
+                if (!((ValveModuleListElement*)elements[i])->mdl->ok)
+                    RemoveElement(i);*/
+
+
+            for (int i = 0; i < numElements; i++)
+                ((SensorModuleListElement*)elements[i])->Update();
+
+            addedModules = true;
+        }
+
+        fGMS::SensorModule* configured;
+        SensorModuleListElement* configured_element;
 
     private:
         bool addedModules = false;
@@ -1022,6 +1161,66 @@ private:
         static NumberInputElement* stateInput;
 
         static bool run;
+
+        long lastUpdateMillis = 0;
+    };
+
+    class SensorModuleConfigMenu : public fGUIElementMenu {
+    public:
+        void InitializeElements() override {
+            nameD = new TextElement("AIR XX", width / 2, 30, 0, 1, TFT_WHITE);
+            macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
+            stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
+            stateD2 = new UncenteredTextElement("Values: VAL, VAL, VAL, VAL", 12, 70, 0, 1, TFT_WHITE);
+            stateD3 = new UncenteredTextElement("Values: VAL, VAL, VAL, VAL", 12, 110, 0, 1, TFT_WHITE);
+
+            AddElement(new TextElement("Valve Module", width / 2, 12, 0, 1, TFT_WHITE));
+            AddElement(nameD);
+            AddElement(macD);
+            AddElement(stateD);
+            AddElement(stateD2);
+            AddElement(new Button("Toggle fan", width / 2, 92, 64, 12, 0, 1, TFT_WHITE, TFT_DARKGREY, []() {smm->configured->SetFan(!smm->configured->FanState); fGMS::Save(); }, "Toggle fan"));
+            AddElement(stateD3);
+            //AddElement(new Button("Set state", width / 2, 92, 72, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {}, "Set state"));
+
+            //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
+        }
+
+        void Enter() override {
+            fGUIElementMenu::Enter();
+
+            Update();
+        }
+
+        void Update() {
+            nameD->t = smm->configured_element->name;
+            macD->t = smm->configured->mdl->MAC_Address;
+
+            stateD->t = smm->configured->ok ? "OK" : "ERROR";
+            if (!smm->configured->ok) {
+                stateD2->t = "";
+                stateD3->t = "";
+
+                return;
+            }
+
+            stateD2->t = "Fan: " + String(smm->configured->FanState ? "On" : "Off");
+            stateD3->t = "PPM: " + String(smm->configured->ppm) + ", Temp: " + String(smm->configured->temp) + ", %hum: " + String(smm->configured->humidity);
+        }
+
+        void Draw() override {
+            fGUIElementMenu::Draw();
+
+            if (millis() - lastUpdateMillis > 100) {
+                Update();
+                lastUpdateMillis = millis();
+            }
+        }
+
+        TextElement* nameD;
+        TextElement* macD;
+        TextElement* stateD;
+        UncenteredTextElement* stateD2, * stateD3;
 
         long lastUpdateMillis = 0;
     };
@@ -1262,7 +1461,10 @@ private:
                 element->displayValue = false;
 
                 displays[numDisplays++] = element;
-                AddElement(element);
+
+                int index = AddElement(element);
+
+                Highlight(index);
             }
 
             lastUpdateMS = millis();
@@ -1385,7 +1587,7 @@ private:
             AddElement(new TextElement("Hygrometer XX", width / 2, 24, 0, 1, TFT_WHITE));
 
             AddElement(new Button("Pos", width / 2 - 40, 40, 40, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() { fGUI::OpenMenu(17); }, "Edit Pos"));
-            AddElement(new Button("Remove", width / 2 + 28, 40, 64, 12, 0, 1, TFT_BLACK, TFT_RED, []() { fGUI::ExitMenu(); hscm->RemoveHygrometer(); }, "Remove"));
+            AddElement(new Button("Rm", width / 2 + 24, 40, 60, 12, 0, 1, TFT_BLACK, TFT_RED, []() { fGUI::ExitMenu(); hscm->RemoveHygrometer(); }, "Remove"));
 
             module_names[0] = "S";
             moduleChoice = new TextChoiceElement(module_names, fGMS::HygrometerModuleCount, 4, 70, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
@@ -1396,18 +1598,21 @@ private:
             channelChoice = new NumberInputElement("Ch", 4, 90, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
             AddElement(channelChoice);
 
+            groupChoice = new NumberInputElement("Grp", 4, 110, 0, 1, TFT_BLACK, TFT_LIGHTGREY);
+            AddElement(groupChoice);
+
             mapMinInput = new FloatInputElement("Min", width / 2 + 8, 70, 0, 1, TFT_BLACK, TFT_DARKGREY);
             AddElement(mapMinInput);
 
             mapMaxInput = new FloatInputElement("Max", width / 2 + 8, 90, 0, 1, TFT_BLACK, TFT_DARKGREY);
             AddElement(mapMaxInput);
 
-            voltageDisplay = new TextElement("X.XXV", width / 2 - 40, 128, 2, 1, TFT_WHITE);
-            AddElement(new TextElement("Volts:", width / 2 - 40, 115, 0, 1, TFT_WHITE));
+            voltageDisplay = new TextElement("X.XXV", width / 2 - 40, 145, 2, 1, TFT_WHITE);
+            AddElement(new TextElement("Volts:", width / 2 - 40, 132, 0, 1, TFT_WHITE));
             AddElement(voltageDisplay);
 
-            valueDisplay = new TextElement("XX%", width / 2 + 40, 128, 2, 1, TFT_WHITE);
-            AddElement(new TextElement("Value:", width / 2 + 40, 115, 0, 1, TFT_WHITE));
+            valueDisplay = new TextElement("XX%", width / 2 + 40, 145, 2, 1, TFT_WHITE);
+            AddElement(new TextElement("Value:", width / 2 + 40, 132, 0, 1, TFT_WHITE));
             AddElement(valueDisplay);
         }
 
@@ -1423,6 +1628,17 @@ private:
                     moduleChoice->Value = i + 2;
                     break;
                 }
+
+            groupChoice->Value = -1;
+            for (int i = 0; i < fGMS::HygrometerGroupCount; i++) {
+                for (int j = 0; j < fGMS::HygrometerGroups[i]->numHygrometers; j++) {
+                    if (fGMS::HygrometerGroups[i]->hygrometers[j] == hscm->selected->hyg) {
+                        groupChoice->Value = i;
+                        first_group = i;
+                        break;
+                    }
+                }
+            }
 
             channelChoice->Value = hscm->selected->hyg->Channel;
 
@@ -1446,8 +1662,35 @@ private:
             voltageDisplay->t = String(hscm->selected->hyg->GetRaw()) + "V";
             valueDisplay->t = String((int)(hscm->selected->hyg->GetValue() * 100)) + "%";
 
+            groupChoice->Value = max(-1, min(groupChoice->Value, fGMS::HygrometerGroupCount));
+
             if (voltageDisplay->t == "-1.00V") { voltageDisplay->t = "ERR"; }
             if (valueDisplay->t == "-100%") { valueDisplay->t = "ERR"; }
+        }
+
+        void Exit() override {
+            fGUIElementMenu::Exit();
+
+            if (groupChoice->Value != first_group) {
+                if (first_group != -1) {
+                    fGMS::HygrometerGroups[first_group]->RemoveHygrometer(hscm->selected->hyg);
+
+                    if (fGMS::HygrometerGroups[first_group]->numHygrometers == 0)
+                        fGMS::RemoveHygrometerGroup(first_group);
+                }
+
+                if (groupChoice->Value >= fGMS::HygrometerGroupCount)
+                {
+                    fGMS::HygrometerGroup* g = fGMS::CreateHygrometerGroup();
+
+                    g->AddHygrometer(hscm->selected->hyg);
+                }
+                else if (groupChoice->Value != -1) {
+                    fGMS::HygrometerGroup* g = fGMS::HygrometerGroups[groupChoice->Value];
+
+                    g->AddHygrometer(hscm->selected->hyg);
+                }
+            }
         }
 
         void UpdateModuleNames() {
@@ -1462,6 +1705,9 @@ private:
 
         TextChoiceElement* moduleChoice;
         NumberInputElement* channelChoice;
+        NumberInputElement* groupChoice;
+
+        int first_group = -1;
 
         FloatInputElement* mapMinInput;
         FloatInputElement* mapMaxInput;
@@ -1469,6 +1715,44 @@ private:
         TextElement* voltageDisplay;
 
         String module_names[128];
+    };
+
+    class HygrometerGroupConfigMenu : public fGUIElementMenu {
+        void InitializeElements() override {
+        }
+
+        void Enter() override {
+            fGUIElementMenu::Enter();
+        }
+
+        void Draw() override {
+            fGUIElementMenu::Draw();
+
+            hscm->selected->hyg->x = x_in->Value;
+            hscm->selected->hyg->y = y_in->Value;
+        }
+
+        FloatInputElement* x_in, * y_in;
+        HygrometerDisplayElement* hde;
+    };
+
+    class EnableServerMenu : public fGUIElementMenu {
+    public:
+        void InitializeElements() {
+            AddElement(new TextElement("Server Enabled", width / 2, height / 2, 2, 1, TFT_GOLD));
+            AddElement(new TextElement("RESET to exit", width / 2, 32, 0, 1, TFT_GOLD));
+        }
+
+        void Enter() override {
+            fGUIElementMenu::Enter();
+
+            xTaskCreate(task, "enableServerTask", 8192, nullptr, 0, nullptr);
+        }
+
+        static void task(void* param) {
+            delay(250);
+            fGMS::serverEnabled = true; fGMS::Save(); ESP.restart();
+        }
     };
 
 public:
@@ -1481,6 +1765,7 @@ public:
         fGUI::AttachButton(16);
         fGUI::AttachButton(17);
         fGUI::AttachButton(19);
+        fGUI::AttachButton(27);
 
         mm = new ModuleMenu();
         mmo = new ModuleMenuOverlay();
@@ -1498,6 +1783,8 @@ public:
         hcm = new HygrometerConfigMenu();
         mmm = new MoistureMonitorMenu();
         mtm = new MonitorTabsMenu();
+        smm = new SensorModulesMenu();
+        smcm = new SensorModuleConfigMenu();
 
         fGUI::AddMenu(new TitleMenu());
         fGUI::AddMenu(new DebugMenu());
@@ -1520,6 +1807,9 @@ public:
         fGUI::AddMenu(hcm);
         fGUI::AddMenu(mmm);
         fGUI::AddMenu(mtm);
+        fGUI::AddMenu(smm);
+        fGUI::AddMenu(smcm);
+        fGUI::AddMenu(new EnableServerMenu());
 
         fGUI::Init(e, 34);
 
@@ -1555,6 +1845,8 @@ private:
     static HygrometerConfigMenu* hcm;
     static MoistureMonitorMenu* mmm;
     static MonitorTabsMenu* mtm;
+    static SensorModulesMenu* smm;
+    static SensorModuleConfigMenu* smcm;
 
 
     static void updateGUITask(void* param) {
