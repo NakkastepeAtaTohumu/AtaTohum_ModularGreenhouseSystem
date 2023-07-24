@@ -1,5 +1,4 @@
 #include "fGMS.h"
-
 int fGMS::HygrometerCount = 0;
 fGMS::Hygrometer* fGMS::Hygrometers[1024];
 
@@ -20,3 +19,10 @@ fGMS::Greenhouse fGMS::greenhouse;
 bool fGMS::serverEnabled = false;;
 
 fNETConnection* fGMS::fNET = nullptr;
+
+//WiFiUDP fGMS::ntp_udp;
+//NTPClient fGMS::ntp_client(fGMS::ntp_udp, "europe.pool.ntp.org", 10800, 10000);
+
+int fGMS::watering_period = 1;
+int fGMS::watering_active_period = 0;
+bool fGMS::AutomaticWatering = false;

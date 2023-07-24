@@ -27,9 +27,11 @@ void setup() {
     Serial.begin(115200);
     Serial.println("[fGMS HygroCtl] Hygrometer Controller starting");
 
+    WiFi.mode(WIFI_STA);
+
     c = fNETModule::Init();
     fNETModule::data["ModuleType"] = "HygroCtl";
-    fNETModule::data["name"] = "HYGRO A"; //TODO Unique to moduele!
+    fNETModule::data["name"] = "HYGRO A";
     fNETModule::data["channels"] = 4;
 
     auxI2C.begin(fNET_SDA2, fNET_SCK2);
@@ -89,7 +91,7 @@ DynamicJsonDocument GetValueJSON() {
         for (int i = 0; i < 4; i++) {
             float d = adc->computeVolts(adc->readADC_SingleEnded(i));
             //Serial.println("REad:" + String(i) + "=" + String(d));
-            a.add<float>(d);
+            a.add<int>(floor(d * 100));
         }
     }
 
@@ -106,10 +108,18 @@ void SendData() {
     }
 }
 
+long last_connected = 0;
+
 void loop() {
     delay(100);
 
     SendData();
     fNETModule::working = tunnel->IsConnected;
+
+    if (tunnel->IsConnected)
+        last_connected = millis();
+
+    if (millis() - last_connected > 60000)
+        ESP.restart();
     //Serial.println("loop ok");
 }

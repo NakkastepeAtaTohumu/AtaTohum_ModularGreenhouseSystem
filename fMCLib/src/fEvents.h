@@ -28,6 +28,21 @@ private:
     void (*run)(T*, void*);
 };
 
+class EventHandlerFunc : public EventHandler_d {
+public:
+    EventHandlerFunc(void (*r)(void*)) {
+        run = r;
+    }
+
+
+    void Handle(void* args) override {
+        run(args);
+    }
+
+private:
+    void (*run)(void*);
+};
+
 class Event {
 public:
     Event() {

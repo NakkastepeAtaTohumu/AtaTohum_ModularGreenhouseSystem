@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef fGMSModule_h
-#define fGMSModule_h
+#ifndef fGMSServer_h
+#define fGMSServer_h
 
 #include "ESPAsyncWebServer.h"
 #include "ArduinoJson.h"
@@ -12,7 +12,7 @@
 
 class fGMSServer {
 public:
-     static void Init() {
+    static void Init() {
         server = new AsyncWebServer(fGMSServerPort);
         events = new AsyncEventSource("/events");
 
@@ -20,7 +20,7 @@ public:
         DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
         DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
 
-        server->on("/getSystem", [](AsyncWebServerRequest *r) {
+        server->on("/getSystem", [](AsyncWebServerRequest* r) {
             Serial.println("[fGMS Server] Get config json");
 
             String data_str;
@@ -29,6 +29,52 @@ public:
 
             Serial.println("[fGMS Server] Sending: " + data_str);
             r->send(200, "application/json", data_str);
+            });
+
+        server->on("/shutdownServer", [](AsyncWebServerRequest* r) {
+            Serial.println("[fGMS Server] Shutdown");
+
+            fGMS::serverEnabled = false;
+            fGMS::Save();
+
+            r->send(200, "text/html", "ok");
+            });
+
+        server->on("/toggleValve", [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("module") || !r->hasParam("valve"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int mdl = atoi(r->getParam("module")->value().c_str());
+            int vlv = atoi(r->getParam("valve")->value().c_str());
+            bool open = atoi(r->getParam("state")->value().c_str());
+
+            Serial.println("[fGMS Server] Toggling valve: " + String(mdl) + " : " + String(vlv));
+
+            if (mdl >= fGMS::ValveModuleCount)
+            {
+                r->send(418, "text/html", "Module not found");
+                return;
+            }
+
+            fGMS::ValveModule* m = fGMS::ValveModules[mdl];
+
+            if (!m->ok)
+            {
+                r->send(500, "text/html", "Module error");
+                return;
+            }
+
+            int result = m->SetState(vlv, open);
+
+            if (result == 1)
+                r->send(200, "text/html", "ok");
+            else if(result == 0)
+                r->send(200, "text/html", "no_change");
+            else if(result == -1)
+                r->send(500, "text/html", "failed");
             });
 
         server->on("/getValues", [](AsyncWebServerRequest* r) {
@@ -42,8 +88,18 @@ public:
             r->send(200, "application/json", data_str);
             });
 
-        events->onConnect([](AsyncEventSourceClient* client) {
+        server->on("/getSystemState", [](AsyncWebServerRequest* r) {
+            Serial.println("[fGMS Server] Get state json");
 
+            String data_str;
+            DynamicJsonDocument data = GetSystemJSON();
+            serializeJsonPretty(data, data_str);
+
+            Serial.println("[fGMS Server] Sending: " + data_str);
+            r->send(200, "application/json", data_str);
+            });
+
+        events->onConnect([](AsyncEventSourceClient* client) {
             if (client->lastId())
                 Serial.printf("[fGMS Server Events] Client reconnected. Last message ID that it got is: %u\n", client->lastId());
             else
@@ -81,7 +137,7 @@ private:
         for (int i = 0; i < fGMS::HygrometerCount; i++) {
             JsonObject o = hygrometersArray.createNestedObject();
             JsonObject posObj = o.createNestedObject("pos");
-            
+
             posObj["x"] = fGMS::Hygrometers[i]->x;
             posObj["y"] = fGMS::Hygrometers[i]->y;
         }
@@ -148,7 +204,7 @@ private:
 
             o["id"] = i;
             float val = fGMS::Hygrometers[i]->GetValue();
-            o["value"] =  val >= 0 ? val * 100 : -1;
+            o["value"] = val >= 0 ? val * 100 : -1;
         }
 
         JsonArray devicesArray = d.createNestedArray("devices");
@@ -183,6 +239,24 @@ private:
             data["humidity"] = mdl->humidity;
         }
 
+        JsonArray groupsArray = d.createNestedArray("group_values");
+
+        for (int i = 0; i < fGMS::HygrometerGroupCount; i++) {
+            JsonObject o = groupsArray.createNestedObject();
+
+            o["id"] = i;
+            float val = fGMS::HygrometerGroups[i]->GetAverage();
+            o["average"] = val >= 0 ? val * 100 : -1;
+            o["watering"] = fGMS::AutomaticWatering ? fGMS::HygrometerGroups[i]->isWatering : false;
+        }
+
+        d["auto"] = fGMS::AutomaticWatering;
+        d["period"] = fGMS::watering_period;
+        d["active"] = fGMS::watering_active_period;
+        d["timeToWater"] = fGMS::GetSecondsToWater();
+        d["timeUntilWatering"] = fGMS::GetSecondsUntilWatering();
+        d["watering"] = fGMS::IsWatering();
+
         /*
         * TEST DATA
         *
@@ -211,10 +285,34 @@ private:
         return d;
     }
 
+    static DynamicJsonDocument GetSystemJSON() {
+        DynamicJsonDocument d(4096);
+
+        d["uptime"] = millis();
+        d["heap"] = ESP.getFreeHeap();
+
+        JsonArray stats = d.createNestedArray("module_statistics");
+
+        for (int i = 0; i < fNETController::ModuleCount; i++) {
+            JsonObject o = stats.createNestedObject();
+            fNETController::fNETSlaveConnection* mdl = fNETController::Modules[i];
+
+            o["id"] = i;
+            o["mac"] = mdl->MAC_Address;
+            o["name"] = mdl->Config["name"];
+            o["trans_avg"] = mdl->AverageTransactionTimeMillis;
+            o["poll_avg"] = mdl->AveragePollTimeMillis;
+            o["total_transactions"] = mdl->TotalTransactions;
+            o["failed_transactions"] = mdl->FailedTransactions;
+        }
+
+        return d;
+    }
+
     static void task(void* param) {
         while (true) {
             delay(1000);
-            
+
             String data_str;
             DynamicJsonDocument data = GetDataJSON();
             serializeJsonPretty(data, data_str);

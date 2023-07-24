@@ -1,3 +1,9 @@
+#include <TSchedulerDeclarations.hpp>
+#include <TScheduler.hpp>
+#include <TaskSchedulerSleepMethods.h>
+#include <TaskSchedulerDeclarations.h>
+#include <TaskScheduler.h>
+#include <painlessMesh.h>
 #include <ESP32Tone.h>
 #include <ESP32Servo.h>
 #include <ESP32PWM.h>

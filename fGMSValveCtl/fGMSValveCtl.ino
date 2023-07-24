@@ -20,7 +20,7 @@ void setup() {
 
     c = fNETModule::Init();
     fNETModule::data["ModuleType"] = "ValveCtl";
-    fNETModule::data["name"] = "VALVE A"; //TODO Unique to moduele!
+    fNETModule::data["name"] = "VALVE A";
     
 
     pinMode(PIN_VALVE1, OUTPUT);
@@ -63,4 +63,6 @@ void loop() {
     delay(100);
 
     fNETModule::working = valve_state;
+    if (!c->IsConnected)
+        SetValveState(0b0000);
 }

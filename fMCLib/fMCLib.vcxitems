@@ -31,7 +31,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETController.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETLib.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETLogs.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETMessages.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETModule.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)src\fNETStringFunctions.h" />
   </ItemGroup>

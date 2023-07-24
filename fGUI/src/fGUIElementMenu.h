@@ -529,12 +529,12 @@ public:
 
         clk();
     }
+    String t;
+    uint16_t c, bgc;
 
 protected:
     int x_p, y_p, wd, ht;
     uint8_t f, tS;
-    uint16_t c, bgc;
-    String t;
     void(*clk)();
 
 private:
@@ -621,7 +621,7 @@ public:
 
         d->fillRect(x_p - w_off / 2 - 2, y_p - h / 2 - 2, w + 4, h + 4, bgc);
         d->setCursor(x_p - w_off / 2, y_p - h / 2);
-        d->print(t + ": " + String(Value));
+        d->print(t + ": " + String(Value) + postfix);
     }
 
     void OnScroll(bool dir) override {
@@ -629,6 +629,7 @@ public:
     }
 
     int Value = 0;
+    String postfix = "";
 
 protected:
     int x_p, y_p;
@@ -819,7 +820,6 @@ public:
 
         DrawElements();
         DrawScrollbar();
-
     }
 
     uint16_t bg_color = TFT_BLACK;
@@ -863,7 +863,18 @@ protected:
     void Initialize() override {
         InitializeElements();
 
-        elements[0]->isHighlighted = true;
+        if (numElements > 0) {
+            elements[0]->isHighlighted = true;
+            highlightedElementIndex = 0;
+        }
+
+    }
+
+    void Enter() override {
+        if (numElements > 0)
+            elements[0]->isHighlighted = true;
+
+        highlightedElementIndex = 0;
     }
 
     void DrawScrollbar() {
@@ -898,6 +909,9 @@ protected:
     }
 
     void OnScroll(bool dir) {
+        if (numElements <= highlightedElementIndex)
+            return;
+
         if (elements[highlightedElementIndex]->isSelected)
         {
             elements[highlightedElementIndex]->OnScroll(dir);
@@ -913,6 +927,9 @@ protected:
     }
 
     void OnEncoderClick() {
+        if (numElements <= highlightedElementIndex)
+            return;
+
         if (elements[highlightedElementIndex]->isSelectable) {
             if (elements[highlightedElementIndex]->isSelected) {
                 elements[highlightedElementIndex]->isSelected = false;

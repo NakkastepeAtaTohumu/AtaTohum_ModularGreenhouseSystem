@@ -28,7 +28,7 @@
 #define ARDUINO_PARTITION_default
 #define ESP32
 #define CORE_DEBUG_LEVEL 5
-#define ARDUINO_RUNNING_CORE 1
+#define ARDUINO_RUNNING_CORE 0
 #define ARDUINO_EVENT_RUNNING_CORE 1
 #define ARDUINO_USB_CDC_ON_BOOT 0
 #define __cplusplus 201103L

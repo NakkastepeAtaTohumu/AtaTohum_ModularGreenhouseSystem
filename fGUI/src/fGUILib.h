@@ -61,11 +61,11 @@ public:
         d.init();
 
         sp->createSprite(d.width(), d.height());
+        sp->setColorDepth(8);
 
         Serial.println(String(sp->width()) + " " + String(sp->height()));
 
-
-        for (int i = 0; i < menuNum; i++) 
+        for (int i = 0; i < menuNum; i++)
             menus[i]->Initialize();
 
         currentMenu->Enter();
@@ -162,31 +162,11 @@ public:
         CurrentOpenMenu = index;
 
         currentMenu->Enter();
-
-        String s = "Open menus: ";
-
-        for (int i = 0; i < openMenuNum; i++)
-            s += String(openMenus[i]) + ", ";
-
-        if (menuOnTop != nullptr)
-            s += "On top";
-
-        Serial.println(s);
     }
 
     static void OpenMenuOnTop(int index) {
         menuOnTop = menus[index];
         menuOnTop->Enter();
-
-        String s = "Open menus: ";
-
-        for (int i = 0; i < openMenuNum; i++)
-            s += String(openMenus[i]) + ", ";
-
-        if (menuOnTop != nullptr)
-            s += "On top";
-
-        Serial.println(s);
     }
 
     static void CloseMenuOnTop() {
@@ -203,7 +183,17 @@ public:
         buttons[numButtons] = pin;
         numButtons++;
     }
+    static void ResetScreensaver() {
+        lastInteractionMS = millis();
+    }
 
+    static void Screensaver() {
+        lastInteractionMS = 0;
+    }
+
+    static bool IsScreensaverActive() {
+        return millis() - lastInteractionMS > 60000;
+    }
     static int CurrentOpenMenu;
 
 private:

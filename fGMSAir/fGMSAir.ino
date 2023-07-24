@@ -65,14 +65,30 @@ void SetFan(bool on) {
     digitalWrite(13, on);
 }
 
+void save_task(void* param) {
+    delay(1000);
+
+    fNETModule::data["fanState"] = fanOn;
+    fNETModule::Save();
+
+    vTaskDelete(NULL);
+    delay(0);
+}
+
 void setup() {
     Serial.begin(115200);
     ESP_LOGE("fGMS AirSensor", "Air Sensor starting");
 
+    fNETModule::Idle_blink(5000);
+    WiFi.mode(WIFI_STA);
+
     c = fNETModule::Init();
+    Serial.println("Module ok.");
     fNETModule::data["ModuleType"] = "AirSensor";
-    fNETModule::data["name"] = "AIR A"; //TODO Unique to moduele!
-    
+
+    fNETModule::data["name"] = "AIR A";
+
+
 
     bool i2cOK = auxI2C.begin(fNET_SDA2, fNET_SCK2);
     CO2SensorUART.begin(9600, SERIAL_8N1, 17, 16);
@@ -97,7 +113,7 @@ void setup() {
 
     ESP_LOGI("fGMS AirSensor SHT31", "Read temperature : %s C humidity : %s %.", String(temperature), String(humidity));
 
-    if (isnan(temperature) ||isnan(humidity))
+    if (isnan(temperature) || isnan(humidity))
     {
         ESP_LOGE("fGMS AirSensor SHT31", "Sensor error!");
         fNETModule::SetFatalErrorState();
@@ -145,6 +161,7 @@ void setup() {
 
     c->AddQueryResponder("setFan", [](DynamicJsonDocument q) {
         SetFan(q["enabled"]);
+        xTaskCreate(save_task, "save_t", 4096, NULL, 0, NULL);
 
         DynamicJsonDocument resp(256);
         resp["enabled"] = String(fanOn);
@@ -154,6 +171,10 @@ void setup() {
     tunnel = new fNETTunnel(c, "data");
     tunnel->Init();
     tunnel->AcceptIncoming();
+
+    delay(1000);
+
+    SetFan(fNETModule::data["fanState"]);
 }
 
 long lastSentMS;
@@ -183,10 +204,24 @@ void SendData() {
     }
 }
 
+long last_connected = 0;
+
 void loop() {
-    delay(100);
+    delay(500);
 
     SendData();
     fNETModule::working = tunnel->IsConnected;
+    if (tunnel->IsConnected)
+        last_connected = millis();
+
+    //if (millis() - last_connected > 60000)
+    //    ESP.restart();
+
+    Serial.println("Free heap: " + String(ESP.getFreeHeap()));
+
+    /*char buf[2048];
+    vTaskGetRunTimeStats(buf);;
+    Serial.println(String(buf));*/
+
     //Serial.println("loop ok");
 }

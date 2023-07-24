@@ -1,12 +1,14 @@
 #include "fNETStringFunctions.h"
 
-String PaddedInt(int i, int len) {
-    String data = String(i);
-
+String Padded(String data, int len) {
     while (data.length() < len)
         data.concat("#");
 
     return data;
+}
+
+String PaddedInt(int i, int len) {
+    return Padded(String(i), len);
 }
 
 int ParsePaddedInt(String data) {
