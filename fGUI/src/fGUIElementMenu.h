@@ -171,6 +171,13 @@ protected:
             Highlight(first_id);
     }
 
+    void Deinitialize() override {
+        for (int i = 0; i < elementNum; i++)
+            delete Elements[i];
+
+        elementNum = 0;
+    }
+
     int GetFirstHighlightableElement() {
         for (int i = 0; i < elementNum; i++) {
             if (Elements[i]->isHighlightable())
@@ -397,6 +404,8 @@ public:
         d->setTextSize(tS);
 
         DrawTextCentered(d, t, x_p, y_p - (d->fontHeight() / 2));
+
+        //fGUI::DrawInstructions += "t_c" + String(t.length()) + t + String(x_p) + String(y_p - (d->fontHeight() / 2)) + String(f) + String(c, 16) + String(tS) + "|";
     }
 
     String t;
@@ -424,6 +433,8 @@ public:
         d->setTextSize(tS);
         d->setCursor(x_p, y_p);
         d->print(t);
+
+        //fGUI::DrawInstructions += "t" + String(t.length()) + t + String(x_p) + String(y_p) + String(f) + String(c, 16) + String(tS) + "|";
     }
 
     String t;

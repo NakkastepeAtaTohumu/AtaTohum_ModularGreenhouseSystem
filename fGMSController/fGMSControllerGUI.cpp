@@ -6,7 +6,7 @@ fGMSControllerMenu::ModuleMenuManageOverlay* fGMSControllerMenu::mmmo;
 fGMSControllerMenu::ModuleSettingsMenu* fGMSControllerMenu::msm;
 fGMSControllerMenu::ModuleStatsMenu* fGMSControllerMenu::mstm;
 fGMSControllerMenu::SystemConfigMenu* fGMSControllerMenu::scm;
-fGMSControllerMenu::I2CConfigsMenu* fGMSControllerMenu::icm;
+fGUIElementMenu* fGMSControllerMenu::icm;
 fGMSControllerMenu::HygrometerModulesMenu* fGMSControllerMenu::hmm;
 fGMSControllerMenu::ValveModulesMenu* fGMSControllerMenu::vmm;
 fGMSControllerMenu::ValveModuleConfigMenu* fGMSControllerMenu::vmcm;
@@ -20,6 +20,7 @@ fGMSControllerMenu::MoistureMonitorMenu* fGMSControllerMenu::mmm;
 fGMSControllerMenu::MonitorTabsMenu* fGMSControllerMenu::mtm;
 fGMSControllerMenu::SensorModulesMenu* fGMSControllerMenu::smm;
 fGMSControllerMenu::SensorModuleConfigMenu* fGMSControllerMenu::smcm;
+fGMSControllerMenu::HygrometerModuleConfigMenu* fGMSControllerMenu::hmcm;
 
 NumberInputElement* fGMSControllerMenu::ValveModuleConfigMenu::stateInput;
 

@@ -20,6 +20,10 @@ public:
 
     }
 
+    virtual void Deinitialize() {
+
+    }
+
     virtual void Draw() {
 
     }
@@ -51,7 +55,7 @@ protected:
 
     }
     */
-
+    bool Initialized = false;
     TFT_eSprite* d = nullptr;
 };
 
@@ -60,19 +64,45 @@ public:
     static void Init() {
         d.init();
 
-        sp->createSprite(d.width(), d.height());
-        sp->setColorDepth(8);
-
+        //Serial.println("Sprite Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        
+        InitSprite();
         Serial.println(String(sp->width()) + " " + String(sp->height()));
 
-        for (int i = 0; i < menuNum; i++)
-            menus[i]->Initialize();
+        /*for (int i = 0; i < menuNum; i++) {
+            //Serial.println("Heap left: " + String(ESP.getFreeHeap()) + " Init menu: " + String(i));
+            //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
 
-        currentMenu->Enter();
+            //menus[i]->Initialize();
+        }*/
 
-        xTaskCreate(displayTask, "fGUI_DisplayTask", 16384, nullptr, 0, nullptr);
+        OpenMenu(0);
+
+        //Serial.println("Enter Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+
+        xTaskCreate(displayTask, "fGUI_DisplayTask", 4096, nullptr, 0, nullptr);
+
+        //Serial.println("OK Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
 
         initialized = true;
+    }
+
+    static void InitSprite() {
+        Serial.println("Init sprite");
+        sp->setColorDepth(8);
+        sp->createSprite(d.width(), d.height());
+
+        SpriteInitialized = true;
+    }
+
+    static void DeleteSprite() {
+        Serial.println("Deinit sprite");
+        sp->deleteSprite();
+
+        SpriteInitialized = false;
     }
 
     static void Init(ESP32Encoder* encoder, int button_pin) {
@@ -86,13 +116,6 @@ public:
         s->d = sp;
 
         menus[menuNum] = s;
-
-        if (openMenuNum == 0)
-            OpenMenu(0);
-
-        if (initialized)
-            s->Initialize();
-
         return menuNum++;
     }
 
@@ -153,19 +176,36 @@ public:
         OpenMenu(menuToOpen);
 
         m->Exit();
+
+        if (m->Initialized) {
+            m->Deinitialize();
+            m->Initialized = false;
+        }
     }
 
     static void OpenMenu(int index) {
+        Serial.println("open menu " + String(index));
         currentMenu = menus[index];
         openMenus[openMenuNum++] = index;
 
         CurrentOpenMenu = index;
+
+        if (!currentMenu->Initialized) {
+            currentMenu->Initialize();
+            currentMenu->Initialized = true;
+        }
 
         currentMenu->Enter();
     }
 
     static void OpenMenuOnTop(int index) {
         menuOnTop = menus[index];
+
+        if (!menuOnTop->Initialized) {
+            menuOnTop->Initialize();
+            menuOnTop->Initialized = true;
+        }
+
         menuOnTop->Enter();
     }
 
@@ -174,6 +214,12 @@ public:
             return;
 
         menuOnTop->Exit();
+
+        if (menuOnTop->Initialized) {
+            menuOnTop->Deinitialize();
+            menuOnTop->Initialized = false;
+        }
+
         menuOnTop = nullptr;
     }
 
@@ -194,11 +240,16 @@ public:
     static bool IsScreensaverActive() {
         return millis() - lastInteractionMS > 60000;
     }
+
     static int CurrentOpenMenu;
+    static TFT_eSprite* sp;
+
+    static String DrawInstructions;
+
+    static bool SpriteInitialized;
 
 private:
     static TFT_eSPI d;
-    static TFT_eSprite* sp;
     static fGUIMenu* menus[32];
     static int menuNum;
 
@@ -220,7 +271,6 @@ private:
     static long lastDrawMS;
 
     static bool initialized;
-
     static void Display() {
         lastDrawMS = millis();
 
@@ -229,8 +279,15 @@ private:
 
         if (millis() - lastInteractionMS > 60000) {
             d.fillScreen(TFT_BLACK);
+
+            if (SpriteInitialized)
+                DeleteSprite();
+
             return;
         }
+
+        if (!SpriteInitialized)
+            InitSprite();
 
         //d.fillScreen(TFT_BLACK);
 

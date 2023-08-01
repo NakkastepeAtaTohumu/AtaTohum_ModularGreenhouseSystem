@@ -11,13 +11,13 @@ private:
             AddElement(new TextElement("AtaTohum", width / 2, 20, 4, 1, TFT_GOLD));
             AddElement(new TextElement("MGMS Greenhouse", width / 2, 32, 0, 1, TFT_GOLD));
 
-            //AddElement(new Button("Monitor", width / 2, 74, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {fGUI::OpenMenu(1); }));
-            //AddElement(new Button("Config", width / 2, 107, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
-            //AddElement(new Button("Debug", width / 2, 140, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
+            /*AddElement(new Button("Monitor", width / 2, 74, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {fGUI::OpenMenu(1); }));
+            AddElement(new Button("Config", width / 2, 107, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));
+            AddElement(new Button("Debug", width / 2, 140, 96, 24, 2, 1, TFT_BLACK, TFT_SKYBLUE, []() {}));*/
 
             AddElement(new Button("M", 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() { fGUI::OpenMenu(20); }, "Monitor"));
             AddElement(new Button("C", width / 2, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() { fGUI::OpenMenu(10); }, "Config"));
-            AddElement(new Button("L", width - 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_ORANGE, []() {fGUI::OpenMenu(25); }, "Logs"));
+            AddElement(new Button("W", width - 24, 72, 32, 32, 2, 1, TFT_BLACK, TFT_BLUE, []() {fGUI::OpenMenu(25); }, "Watering"));
             AddElement(new Button("S", 24, 112, 32, 32, 2, 1, TFT_BLACK, TFT_GREEN, []() { /*fGUI::OpenMenu(23);*/ fGMS::serverEnabled = true; fGMS::Save(); ESP.restart(); }, "Enable Server"));
             AddElement(new Button("D", width / 2, 112, 32, 32, 2, 1, TFT_BLACK, TFT_DARKGREY, []() { fGUI::OpenMenu(1); }, "Debug"));
 
@@ -56,7 +56,7 @@ private:
 
     class ModuleListElement : public ListElement {
     public:
-        ModuleListElement(fNETController::fNETSlaveConnection* md) {
+        ModuleListElement(fNETController::Module* md) {
             mdl = md;
             isSelectable = true;
 
@@ -94,28 +94,16 @@ private:
             d->setCursor(x + 16, y + 10);
             d->println("ID: " + String(id));
             d->setCursor(x + 16, y + 20);
-            d->println("Full mac:");
+            d->println("Chip ID:");
             d->setCursor(x + 16, y + 30);
-            d->println(" " + mac1);
-            d->setCursor(x + 16, y + 40);
-            d->println(" " + mac2);
+            d->println(" " + mac);
 
-            d->setCursor(x + 16, y + 54);
-            d->println("I2C Addr:");
-            d->setCursor(x + 16, y + 62);
-            d->println(" " + String(i2cAddr));
-
-            d->setCursor(x + 16, y + 76);
+            d->setCursor(x + 16, y + 44);
             d->println("Type:");
-            d->setCursor(x + 16, y + 84);
+            d->setCursor(x + 16, y + 52);
             d->println(" " + type);
 
-            d->setCursor(x + 16, y + 98);
-            d->println("Buffer:");
-            d->setCursor(x + 16, y + 106);
-            d->println(" " + String(queueC));
-
-            return 118;
+            return 60;
         }
 
         void OnSelect() override {
@@ -130,8 +118,7 @@ private:
         }
 
         void Update() {
-            mac1 = mdl->MAC_Address.substring(0, 8);
-            mac2 = mdl->MAC_Address.substring(9);
+            mac = mdl->MAC_Address;
 
             type = mdl->Config["ModuleType"].as<String>();
             name = mdl->Config["name"].as<String>();
@@ -145,40 +132,19 @@ private:
             id = fNETController::GetModuleIndex(mdl);
 
             isOnline = mdl->isOnline;
-            i2cAddr = mdl->i2c_address;
-
-            queueC = mdl->QueuedMessageCount();
 
             if (!mdl->valid)
                 mm->RemoveModule();
 
-            if (millis() > 12500) {
-                if (isOnline && !wasOnline)
-                {
-                    alertmenu->updateMessage(name + " " + String(id), "Module connected.");
-                    fGUI::OpenMenu(alertmenuid);
-                }
-
-                if (!isOnline && wasOnline) {
-                    alertmenu->updateMessage(name + " " + String(id), "Module disconnected!");
-                    fGUI::OpenMenu(alertmenuid);
-                }
-            }
-
             wasOnline = isOnline;
         }
 
-        fNETController::fNETSlaveConnection* mdl;
+        fNETController::Module* mdl;
 
-        String mac1;
-        String mac2;
+        String mac;
         String type;
         String name;
         int id;
-
-        int i2cAddr;
-
-        int queueC;
 
     private:
         bool isOnline;
@@ -187,7 +153,7 @@ private:
 
     class ModuleMenu : public ListMenu {
     public:
-        void AddModule(fNETController::fNETSlaveConnection* c) {
+        void AddModule(fNETController::Module* c) {
             if (!modulePresent)
                 RemoveElement(0);
 
@@ -243,7 +209,7 @@ private:
             addedModules = true;
         }
 
-        fNETController::fNETSlaveConnection* configured;
+        fNETController::Module* configured;
         ModuleListElement* configured_element;
 
     private:
@@ -306,24 +272,20 @@ private:
             macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
             stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
 
-            i2cAddrField = new NumberInputElement("I2C Addr", width / 2, 70, 0, 1, TFT_WHITE, TFT_DARKGREY);
-
-
             AddElement(new TextElement("Actions", width / 2, 12, 2, 1, TFT_WHITE));
             AddElement(nameD);
             AddElement(macD);
             AddElement(stateD);
 
-            AddElement(i2cAddrField);
-            AddElement(new Button("Set I2C Addr", width / 2, 90, 76, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                mm->configured->SetI2CAddr(msm->i2cAddrField->Value);
+            AddElement(new Button("Restart", width / 2, 70, 76, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
+                mm->configured->Restart();
                 }, ""));
 
             //AddElement(new Button("Edit Config", width / 2, 110, 76, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {}, ""));
             AddElement(new Button("REMOVE", width / 2, 148, 76, 12, 0, 1, TFT_BLACK, TFT_RED, []() {
-                if (fNETController::I2C_IsEnabled && mm->configured->isOnline)
+                if (mm->configured->isOnline)
                 {
-                    alertmenu->updateMessage("Can't remove", "Disable I2C.");
+                    alertmenu->updateMessage("Can't remove", "Module is online.");
                     fGUI::OpenMenu(alertmenuid);
                     return;
                 }
@@ -342,7 +304,6 @@ private:
 
             nameD->t = "Module: " + mm->configured_element->type + " " + String(mm->configured_element->id);
             macD->t = mm->configured->MAC_Address;
-            i2cAddrField->Value = mm->configured->i2c_address;
 
             stateD->t = mm->configured->isOnline ? "ONLINE" : "OFFLINE";
         }
@@ -350,7 +311,6 @@ private:
         TextElement* nameD;
         TextElement* macD;
         TextElement* stateD;
-        NumberInputElement* i2cAddrField;
     };
 
     class ModuleStatsMenu : public fGUIElementMenu {
@@ -359,19 +319,13 @@ private:
             nameD = new TextElement("Module: MDLMDLM X", width / 2, 30, 0, 1, TFT_WHITE);
             macD = new TextElement("MACMACMACMACMACMA", width / 2, 40, 0, 1, TFT_WHITE);
             stateD = new TextElement("STATESTATESTATEST", width / 2, 50, 0, 1, TFT_WHITE);
-            avgPollD = new UncenteredTextElement("Average Poll: MSMSMS", 6, 70, 0, 1, TFT_WHITE);
-            avgTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 80, 0, 1, TFT_WHITE);
-            totalTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 100, 0, 1, TFT_WHITE);
-            failTransD = new UncenteredTextElement("Average Transaction: MSMSMS", 6, 110, 0, 1, TFT_WHITE);
+            pingD = new UncenteredTextElement("Ping: MSMSMS", 6, 70, 0, 1, TFT_WHITE);
 
             AddElement(new TextElement("Stats", width / 2, 12, 2, 1, TFT_WHITE));
             AddElement(nameD);
             AddElement(macD);
             AddElement(stateD);
-            AddElement(avgPollD);
-            AddElement(avgTransD);
-            AddElement(totalTransD);
-            AddElement(failTransD);
+            AddElement(pingD);
 
             //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
         }
@@ -388,10 +342,7 @@ private:
 
             stateD->t = mm->configured->isOnline ? "ONLINE" : "OFFLINE";
 
-            avgPollD->t = "Avg poll: " + String(mm->configured->AveragePollTimeMillis) + " ms";
-            avgTransD->t = "Avg trans: " + String(mm->configured->AverageTransactionTimeMillis) + " ms";
-            totalTransD->t = "Total trans: " + String(mm->configured->TotalTransactions);
-            failTransD->t = "Failed trans: " + String(mm->configured->FailedTransactions);
+            pingD->t = "Avg poll: " + String(mm->configured->Ping * 1000) + " ms";
         }
 
         void Draw() override {
@@ -406,10 +357,7 @@ private:
         TextElement* nameD;
         TextElement* macD;
         TextElement* stateD;
-        UncenteredTextElement* avgPollD;
-        UncenteredTextElement* avgTransD;
-        UncenteredTextElement* totalTransD;
-        UncenteredTextElement* failTransD;
+        UncenteredTextElement* pingD;
 
         long lastUpdateMillis = 0;
     };
@@ -503,59 +451,6 @@ private:
         String prev_config;
     };
 
-    class I2CConfigsMenu : public fGUIElementMenu {
-    public:
-        void InitializeElements() override {
-            stateD = new TextElement("State: " + String(fNETController::I2C_IsEnabled ? "ENABLED" : "DISABLED"), width / 2, 40, 0, 1, TFT_WHITE);
-            freqD = new UncenteredTextElement("Frequency: " + String(fNETController::I2C_freq), 20, 60, 0, 1, TFT_WHITE);
-            discoveryD = new TextElement("Discovery: " + String(fNETController::I2C_DiscoveryEnabled ? "ENABLED" : "DISABLED"), width / 2, 50, 0, 1, TFT_WHITE);
-
-            freqField = new FloatInputElement("Set freq:", 20, 74, 0, 1, TFT_WHITE, TFT_DARKGREY);
-            freqField->Value = fNETController::I2C_freq / 10000;
-
-            freqField->step = 10000;
-
-
-            AddElement(new TextElement("I2C Config", width / 2, 12, 2, 1, TFT_WHITE));
-            AddElement(freqD);
-            AddElement(stateD);
-            AddElement(discoveryD);
-
-            AddElement(freqField);
-            AddElement(new Button("Set f", width / 2 + 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(fNETController::I2C_IsEnabled, icm->freqField->Value, fNETController::I2C_DiscoveryEnabled);
-                }, ""));
-
-            AddElement(new Button("Toggle", width / 2 - 32, 90, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(!fNETController::I2C_IsEnabled, fNETController::I2C_freq, fNETController::I2C_DiscoveryEnabled);
-                }, ""));
-
-            AddElement(new Button("Discovery", width / 2 - 32, 110, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::SetI2CState(fNETController::I2C_IsEnabled, fNETController::I2C_freq, !fNETController::I2C_DiscoveryEnabled);
-                }, ""));
-
-            AddElement(new Button("Scan", width / 2 + 32, 110, 60, 12, 0, 1, TFT_BLACK, TFT_DARKGREY, []() {
-                fNETController::DoScan();
-                }, ""));
-
-
-            //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
-        }
-
-
-        void Enter() override {
-            fGUIElementMenu::Enter();
-
-            freqD->t = "Frequency: " + String(fNETController::I2C_freq);
-            stateD->t = "State: " + String(fNETController::I2C_IsEnabled ? "ENABLED" : "DISABLED");
-            stateD->t = "State: " + String(fNETController::I2C_DiscoveryEnabled ? "ENABLED" : "DISABLED");
-        }
-        UncenteredTextElement* freqD;
-        TextElement* stateD;
-        TextElement* discoveryD;
-        FloatInputElement* freqField;
-    };
-
     class HygrometerModuleListElement : public ListElement {
     public:
         HygrometerModuleListElement(fGMS::HygrometerModule* md) {
@@ -594,7 +489,7 @@ private:
 
         void OnClick() override {
             fGUI::CloseMenuOnTop();
-            fGUI::OpenMenu(11);
+            fGUI::OpenMenu(26);
         }
 
         void Update() {
@@ -1045,14 +940,14 @@ private:
             if (!hmm->configured->ok) {
                 stateD->t = "ERROR";
 
-                if (!hmm->configured->tunnel->IsConnected)
-                    valueD->t = "Tunnel disconnected!";
+                if (!hmm->configured->mdl->isOnline)
+                    valueD->t = "Module offline!";
 
+                else if (!hmm->configured->tunnel->IsConnected)
+                    valueD->t = "Tunnel disconnected!";
+                
                 else if (!hmm->configured->value_received)
                     valueD->t = "No data received!";
-
-                else if (!hmm->configured->mdl->isOnline)
-                    valueD->t = "Module offline!";
 
                 channelsD->t = "";
             }
@@ -1114,7 +1009,7 @@ private:
 
             //AddElement(new TooltipDisplay(width / 2, 152, 2, 1, TFT_BLACK, TFT_DARKCYAN));
 
-            xTaskCreate(setstatetask, "valveStatusUpdater", 4096, nullptr, 0, nullptr);
+            //xTaskCreate(setstatetask, "valveStatusUpdater", 4096, nullptr, 0, nullptr);
         }
 
         void Enter() override {
@@ -1131,6 +1026,8 @@ private:
 
             stateD->t = vmm->configured->ok ? "OK" : "ERROR";
             stateD2->t = String(vmm->configured->State);
+
+            vmm->configured->NextState = stateInput->Value;
         }
 
         void Exit() override {
@@ -1138,7 +1035,7 @@ private:
 
             run = false;
         }
-
+        /*
         static void setstatetask(void* param) {
             while (true) {
                 delay(100);
@@ -1147,7 +1044,7 @@ private:
                         vmm->configured->SetState(stateInput->Value);
                 }
             };
-        }
+        }*/
 
         static void toggle(int valves) {
             stateInput->Value = stateInput->Value ^ valves;
@@ -1480,7 +1377,7 @@ private:
         }
 
         GreenhouseDisplayElement* gde;
-        HygrometerDisplayElement* displays[1024];
+        HygrometerDisplayElement* displays[32];
         int numDisplays = 0;
 
         long lastUpdateMS = 0;
@@ -1582,7 +1479,7 @@ private:
         }
 
         GreenhouseDisplayElement* gde;
-        HygrometerDisplayElement* displays[1024];
+        HygrometerDisplayElement* displays[32];
         int numDisplays = 0;
 
         long lastUpdateMS = 0;
@@ -1671,7 +1568,7 @@ private:
         FloatInputElement* mapMaxInput;
         TextElement* valueDisplay;
 
-        String module_names[128];
+        String module_names[4];
 
         fGMS::HygrometerGroup* edited;
     };
@@ -1809,7 +1706,7 @@ private:
         TextElement* valueDisplay;
         TextElement* voltageDisplay;
 
-        String module_names[128];
+        String module_names[4];
     };
 
     class EnableServerMenu : public fGUIElementMenu {
@@ -1930,61 +1827,219 @@ public:
         fGUI::AttachButton(19);
         fGUI::AttachButton(27);
 
+
+        //Serial.println("MM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("MM Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mm = new ModuleMenu();
+
+        //Serial.println("MMO Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("MMO Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mmo = new ModuleMenuOverlay();
+
+        //Serial.println("MMMO Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mmmo = new ModuleMenuManageOverlay();
+
+        //Serial.println("MSM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         msm = new ModuleSettingsMenu();
+
+        //Serial.println("MSTM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mstm = new ModuleStatsMenu();
+
+        //Serial.println("SCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         scm = new SystemConfigMenu();
-        icm = new I2CConfigsMenu();
+
+        //Serial.println("ICM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        icm = new fGUIElementMenu();
+
+        //Serial.println("HMM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         hmm = new HygrometerModulesMenu();
+
+        //Serial.println("VMM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         vmm = new ValveModulesMenu();
+
+        //Serial.println("VMCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         vmcm = new ValveModuleConfigMenu();
+
+        //Serial.println("GSCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         gscm = new GreenhouseSizeConfigMenu();
+
+        //Serial.println("GMCTM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         gmctm = new GreenhouseModuleConfigTabsMenu();
+
+        //Serial.println("HSCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         hscm = new HygrometersConfigMenu();
+
+        //Serial.println("HPCO Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         hpco = new HygrometerPositionConfigMenu();
+
+        //Serial.println("HCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         hcm = new HygrometerConfigMenu();
+
+        //Serial.println("MMM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mmm = new MoistureMonitorMenu();
+
+        //Serial.println("MTM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         mtm = new MonitorTabsMenu();
+
+        //Serial.println("SMM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         smm = new SensorModulesMenu();
+
+        //Serial.println("SMCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         smcm = new SensorModuleConfigMenu();
 
+        //Serial.println("HMCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        hmcm = new HygrometerModuleConfigMenu();
+
+        //Serial.println("TitleMenu Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+
         fGUI::AddMenu(new TitleMenu());                 //1
+
+        //Serial.println("Debug Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(new DebugMenu());                 //2
+
+        //Serial.println("MM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(mm);                              //3
+
+        //Serial.println("MMO Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(mmo);                             //4
+
+        //Serial.println("MMMO Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(mmmo);                            //5
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(msm);                             //6
-        fGUI::AddMenu(scm);                             //7
-        fGUI::AddMenu(mstm);                            //8
-        fGUI::AddMenu(icm);                             //9
-        fGUI::AddMenu(hmm);                             //10
-        fGUI::AddMenu(new ConfigMenu());                //11
-        fGUI::AddMenu(vmcm);                            //12
-        fGUI::AddMenu(vmm);                             //13
-        fGUI::AddMenu(new ValveModuleConfigMenu());     //14
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(scm);                             //7 <-?
+
+        //Serial.println("MSTM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(mstm);                            //8 <-
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(icm);                             //9 <-
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(hmm);                             //10 <-
+
+        //Serial.println("ConfigM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(new ConfigMenu());                //11 <-
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(vmcm);                            //12 <- 
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(vmm);                             //13 <-
+
+        //Serial.println("VMCM2 Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(new fGUIElementMenu());     //14
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(gscm);                            //15
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(gmctm);                           //16
+
+        //Serial.println("HSCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(hscm);                            //17
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(hpco);                            //18
+
+        //Serial.println("HCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(hcm);                             //19
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(mmm);                             //20
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(mtm);                             //21
+
+        //Serial.println("SMM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(smm);                             //22
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(smcm);                            //23
+
+        //Serial.println("ESM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(new EnableServerMenu());          //24
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(new HygrometerGroupConfigMenu()); //25
+
+        //Serial.println("WCM Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
         fGUI::AddMenu(new WateringConfigMenu());        //26
 
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+        fGUI::AddMenu(hmcm);                            //27
+
+        //Serial.println("Init Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
+
         fGUI::Init(e, 34);
+
+        //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
+        //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
 
         alertmenu = new AlertMenu("");
         alertmenuid = fGUI::AddMenu(alertmenu);
 
 
-        xTaskCreate(updateStatusTask, "cnt_gui_status", 4096, nullptr, 0, nullptr);
-        xTaskCreate(updateGUITask, "cnt_gui_modules", 4096, nullptr, 0, nullptr);
+        //xTaskCreate(updateGUITask, "cnt_gui_modules", 4096, nullptr, 0, nullptr);
+        
+        fNETController::OnModuleConnected.AddHandler(new EventHandlerFunc([](void* param) {
+            fNETController::Module* connected = (fNETController::Module*)param;
+            DisplayAlert(connected->Config["name"], "Connected.");
+            }));
+
+        fNETController::OnModuleDisconnected.AddHandler(new EventHandlerFunc([](void* param) {
+            fNETController::Module* connected = (fNETController::Module*)param;
+            DisplayAlert(connected->Config["name"], "Disconnected.");
+            }));
     }
 
     static void AddModules() {
@@ -2001,7 +2056,7 @@ private:
     static ModuleSettingsMenu* msm;
     static ModuleStatsMenu* mstm;
     static SystemConfigMenu* scm;
-    static I2CConfigsMenu* icm;
+    static fGUIElementMenu* icm;
     static HygrometerModulesMenu* hmm;
     static ValveModulesMenu* vmm;
     static ValveModuleConfigMenu* vmcm;
@@ -2014,6 +2069,7 @@ private:
     static MonitorTabsMenu* mtm;
     static SensorModulesMenu* smm;
     static SensorModuleConfigMenu* smcm;
+    static HygrometerModuleConfigMenu* hmcm;
 
 
     static void updateGUITask(void* param) {
@@ -2028,6 +2084,14 @@ private:
     static AlertMenu* alertmenu;
     static int alertmenuid;
 
+    static void DisplayAlert(String title, String message) {
+        if (fGUI::CurrentOpenMenu != alertmenuid)
+            fGUI::OpenMenu(alertmenuid);
+
+        alertmenu->updateMessage(title, message);
+    }
+
+    /*
     static void updateStatusTask(void* param) {
         delay(500);
 
@@ -2051,14 +2115,12 @@ private:
             else if (fNETController::status_d == "cfg_err")
                 alertmenu->updateMessage("Config error!", "Can't read config!");
             else if (fNETController::status_d == "init" || fNETController::status_d == "setup_i2c" || fNETController::status_d == "load_mdl" || fNETController::status_d == "read_cfg")
-                alertmenu->updateMessage("Startup", fNETController::status_d);
             else
                 continue;
 
-            if (fGUI::CurrentOpenMenu != alertmenuid)
-                fGUI::OpenMenu(alertmenuid);
+            
         }
-    }
+    }*/
 };
 
 

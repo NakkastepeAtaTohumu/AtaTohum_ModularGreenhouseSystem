@@ -32,15 +32,27 @@ class EventHandlerFunc : public EventHandler_d {
 public:
     EventHandlerFunc(void (*r)(void*)) {
         run = r;
+        //xTaskCreate(task, "handler", 2048, NULL, 0, NULL);
     }
 
 
     void Handle(void* args) override {
+        //current_param = args;
+        //vTaskResume(handle);
         run(args);
     }
+    /*
+    void task(void* param) {
+        while (true) {
+            vTaskSuspend(NULL);
+            run(current_param);
+        }
+    }*/
 
 private:
     void (*run)(void*);
+    //TaskHandle_t handle;
+    //void* current_param;
 };
 
 class Event {

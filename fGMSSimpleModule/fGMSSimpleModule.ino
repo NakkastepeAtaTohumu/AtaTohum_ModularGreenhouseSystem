@@ -1,3 +1,4 @@
+#include <PNGenc.h>
 #include <TSchedulerDeclarations.hpp>
 #include <TScheduler.hpp>
 #include <TaskSchedulerSleepMethods.h>

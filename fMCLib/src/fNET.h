@@ -3,12 +3,18 @@
 #ifndef fNET_h
 #define fNET_h
 
+#include <painlessMesh.h>
 #include <ArduinoJson.h>
 #include <ArduinoJson.hpp>
 #include <CircularBuffer.h>
 #include <esp_check.h>
 #include <esp_now.h>
 #include <WiFi.h>
+#include <AsyncTCP.h>
+#include <FS.h>
+#include <SPIFFS.h>
+#include <Update.h>
+
 #include "fNETStringFunctions.h"
 #include "fEvents.h"
 
@@ -16,23 +22,23 @@ class fNETConnection;
 
 class QueryResponseHandler_d {
 public:
-    virtual DynamicJsonDocument Handle(DynamicJsonDocument d) {
+    virtual DynamicJsonDocument* Handle(DynamicJsonDocument* d) {
         Serial.println("Error");
-        return DynamicJsonDocument(0);
+        return nullptr;
     }
 };
 
 class DefaultQueryResponder {
 public:
-    DefaultQueryResponder(DynamicJsonDocument(*response)(DynamicJsonDocument)) {
+    DefaultQueryResponder(DynamicJsonDocument* (*response)(DynamicJsonDocument*)) {
         Response = response;
     }
 
-    DynamicJsonDocument HandleQueryResponse(DynamicJsonDocument d) {
+    DynamicJsonDocument* HandleQueryResponse(DynamicJsonDocument* d) {
         return Response(d);
     }
 
-    DynamicJsonDocument(*Response)(DynamicJsonDocument);
+    DynamicJsonDocument* (*Response)(DynamicJsonDocument*);
 };
 
 template<class T>
@@ -43,7 +49,7 @@ public:
     }
 
 
-    DynamicJsonDocument Handle(DynamicJsonDocument d) override {
+    DynamicJsonDocument* Handle(DynamicJsonDocument* d) override {
         return t->HandleQueryResponse(d);
     }
 
@@ -62,9 +68,19 @@ public:
         h = hnd;
     }
 
-    DynamicJsonDocument Handle(DynamicJsonDocument d) {
+    DynamicJsonDocument* Handle(DynamicJsonDocument* d) {
         return h->Handle(d);
     }
+};
+
+class PingData {
+public:
+    PingData() {
+
+    }
+
+    String mac;
+    int32_t ping;
 };
 
 class fNETConnection {
@@ -73,7 +89,7 @@ public:
         mac = my_mac;
     }
 
-    void AddQueryResponder(String query, DynamicJsonDocument(*Response)(DynamicJsonDocument)) {
+    void AddQueryResponder(String query, DynamicJsonDocument* (*Response)(DynamicJsonDocument*)) {
         DefaultQueryResponder* r = new DefaultQueryResponder(Response);
         QueryResponseHandler_d* hnd = new QueryResponseHandler<DefaultQueryResponder>(r);
         Responders[ResponderNum] = new QueryResponder(query, hnd);
@@ -108,30 +124,29 @@ public:
         q["recipient"] = macToQuery;
         q["query"] = query;
 
-        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Querying " + q["recipient"].as<String>() + ": " + q["query"].as<String>());
+        ESP_LOGV("fNET", "Query %d: Querying %s: %s", sentQueryID, q["recipient"].as<String>().c_str(), q["query"].as<String>().c_str());
 
         if (!Send(q)) {
-            Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Send failed.");
+            ESP_LOGV("fNET", "Query %s: Send failed.", String(sentQueryID));
             return false;
         }
 
         long startWaitms = millis();
         while (millis() - startWaitms < 5000) {
+            //TasksWaitingForMessage.push(xTaskGetCurrentTaskHandle());
+            //vTaskSuspend(NULL);
             delay(200);
-
             for (int i = 0; i < ReceivedJSONBuffer.size(); i++) {
-                DynamicJsonDocument* r = ReceivedJSONBuffer[i];
-                if ((*r)["tag"] == "queryResult" && (*r)["queryID"].as<int>() == sentQueryID && (*r)["recipient"].as<String>() == mac) {
-                    Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Received query return.");
+                DynamicJsonDocument& r = *ReceivedJSONBuffer[i];
+                if (r["tag"] == "queryResult" && r["queryID"].as<int>() == sentQueryID && r["recipient"].as<String>() == mac) {
+                    ESP_LOGV("fNET", "Query %s: Received query return.", String(sentQueryID).c_str());
 
                     if (result != nullptr)
-                        result->set((*r)["queryResult"]);
+                        result->set(r["queryResult"]);
 
 
-                    if (dt == nullptr) {
-                        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Deleting query doc.");
+                    if (dt == nullptr)
                         delete data;
-                    }
 
                     return true;
                 }
@@ -141,21 +156,16 @@ public:
         String d_str;
 
         serializeJson(q, d_str);
-        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Query failed!");
-        Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Query is: " + d_str);
+        ESP_LOGE("fNET", "Query %d: Query failed.", sentQueryID);
+        ESP_LOGE("fNET", "Query %d: Query was: %s", sentQueryID, d_str.c_str());
 
-
-        if (dt == nullptr) {
-            Serial.println("[fGMS fNet Query " + String(sentQueryID) + "] Deleting query doc.");
+        if (dt == nullptr)
             delete data;
-        }
 
         return false;
     }
 
-    bool Send(DynamicJsonDocument data) {
-        DynamicJsonDocument d(data);
-
+    bool Send(DynamicJsonDocument& d) {
         if (!d.containsKey("source"))
             d["source"] = mac;
 
@@ -170,11 +180,19 @@ public:
         return SendMessage(str, d["recipient"]);
     }
 
-    void(*MessageReceived)(DynamicJsonDocument) = nullptr;
+    virtual bool IsAddressValid(String address) {
 
-    bool IsConnected = false;
+    }
+
+    virtual void Ping(String mac) {
+
+    }
+
+    void(*MessageReceived)(DynamicJsonDocument*) = nullptr;
 
     Event OnMessageReceived;
+    Event OnPingReceived;
+
     String mac = "";
 
 protected:
@@ -182,12 +200,12 @@ protected:
 
     }
 
-    void OnReceiveMessageService(DynamicJsonDocument d) {
+    void OnReceiveMessageService(DynamicJsonDocument& d) {
         //if (d["auto"].as<bool>() != true) {
-        String s;
-        serializeJsonPretty(d, s);
+        //String s;
+        //serializeJsonPretty(d, s);
 
-        Serial.println("[fNET] Received message from " + d["source"].as<String>() + ": " + s);
+        //ESP_LOGV("fNET", "Received message from %s : %s", d["source"].as<String>().c_str(), s.c_str());
         //}
 
         if (d["tag"] == "query")
@@ -201,22 +219,26 @@ protected:
 
 
         if (MessageReceived != nullptr)
-            MessageReceived(d);
+            MessageReceived(&d);
+
+        while (!TasksWaitingForMessage.isEmpty()) {
+            vTaskResume(TasksWaitingForMessage.shift());
+        }
 
         //Serial.println("[fNET] Message received!");
         //Serial.println("[fNET] " + d["source"].as<String>());
         //Serial.println("[fNET] " + d["source"].as<String>());
 
 
-        
+
 
         delay(0);
         OnMessageReceived.Invoke(&d);
     }
 
 private:
-    void ProcessQuery(DynamicJsonDocument q) {
-        DynamicJsonDocument r(1024);
+    void ProcessQuery(DynamicJsonDocument& q) {
+        DynamicJsonDocument* r = nullptr;
 
         String q_str;
         serializeJson(q, q_str);
@@ -225,10 +247,13 @@ private:
 
         for (int i = 0; i < ResponderNum; i++) {
             if (Responders[i]->queryType == q["query"]) {
-                r = Responders[i]->Handle(q);
+                r = Responders[i]->Handle(&q);
                 break;
             }
         }
+
+        if (r == nullptr)
+            return;
 
         DynamicJsonDocument send(256);
 
@@ -236,7 +261,7 @@ private:
         send["tag"] = "queryResult";
         send["query"] = q["query"];
         send["queryID"] = q["queryID"];
-        send["queryResult"] = r;
+        send["queryResult"] = *r;
         send["auto"] = true;
 
         String s_str;
@@ -244,14 +269,9 @@ private:
 
         //Serial.println("[fGMS fNET] Query response: " + s_str);
         Send(send);
-    }
 
-    void OnDisconnectService() {
-        Serial.println("[fGMS fNet] Disconencted from controller!");
-    }
-
-    void OnReconnectService() {
-        Serial.println("[fGMS fNet] Connected to controller!");
+        if (r != nullptr)
+            delete r;
     }
 
     int LastQueryID = 0;
@@ -260,9 +280,8 @@ private:
     int ResponderNum = 0;
 
     CircularBuffer<DynamicJsonDocument*, 4> ReceivedJSONBuffer;
+    CircularBuffer<TaskHandle_t, 4> TasksWaitingForMessage;
 };
-
-#warning ne
 
 class fNETTunnel {
 private:
@@ -310,7 +329,7 @@ public:
         if (Initialized)
             return;
 
-        Serial.println("[fNet Tunnel " + portName + "] Initializing.");
+        ESP_LOGD("fNET", "Tunnel %s: Initializing", portName.c_str());
 
         if (!TunnelManager::Initialized)
             TunnelManager::Init();
@@ -324,31 +343,48 @@ public:
     }
 
     void AcceptIncoming() {
-        Serial.println("[fNet Tunnel " + portName + "] Accepting remote requests.");
+        ESP_LOGD("fNET", "Tunnel %s: Accepting remote requests.", portName.c_str());
 
         Accept = true;
     }
 
     void BlockIncoming() {
-        Serial.println("[fNet Tunnel " + portName + "] Blocking remote requests.");
+        ESP_LOGD("fNET", "Tunnel %s: Blocking remote requests.", portName.c_str());
 
         Accept = false;
     }
 
-    void Send(DynamicJsonDocument data) {
-        if (!Initialized)
-            return;
+    bool Send(DynamicJsonDocument data) {
+        if (!Initialized) {
+            ESP_LOGE("fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
+            return false;
+        }
 
-        if (!IsConnected)
-            return;
+        if (!IsConnected) {
+            ESP_LOGE("fNET", "Tunnel %s : Tunnel not connected!", portName.c_str());
+            return false;
+        }
+        ESP_LOGV("fNET", "Tunnel %s : Sending", portName.c_str());
 
-        DynamicJsonDocument d = GetMessageFormat("data", 8192);
+        DynamicJsonDocument& d = *GetMessageFormat("data", 2048);
         d["data"] = data;
 
-        c->Send(d);
+        if (d.overflowed())
+            ESP_LOGE("fNET", "Tunnel %s : Data alloc failed!", portName.c_str());
+
+        d.shrinkToFit();
+
+
+        bool ok = c->Send(d);
+        delete& d;
+
+        if(!ok)
+            ESP_LOGE("fNET", "Tunnel %s : Send failed!", portName.c_str());
+
+        return ok;
     }
 
-    void onReceive(void (*handler)(DynamicJsonDocument)) {
+    void onReceive(void (*handler)(DynamicJsonDocument&)) {
         receiveHandler = handler;
     }
 
@@ -361,42 +397,34 @@ public:
         if (!Initialized)
             return;
 
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Closing connection.");
+        ESP_LOGD("fNET", "Tunnel %s: Closing connection.", portName.c_str());
 
-        DynamicJsonDocument d(256);
-
-        d["port"] = portName;
-        d["tag"] = "fNETTunnel";
-        d["type"] = "disconnection_request";
-        d["from"] = c->mac;
-        d["query"] = "fNETTunnelPort_" + portName;
-
-        d["recipient"] = mac;
-
-        DynamicJsonDocument result(128);
-        c->Query(mac, "fNETTunnelPort_" + portName, &d, &result);
+        DynamicJsonDocument& d = *GetMessageFormat("disconnect_request", 256);
+        c->Send(d);
+        delete& d;
     }
 
-    DynamicJsonDocument HandleQueryResponse(DynamicJsonDocument d) {
+    DynamicJsonDocument* HandleQueryResponse(DynamicJsonDocument* dat) {
+        DynamicJsonDocument& d = *dat;
         if (!(d["port"] == portName))
-            return DynamicJsonDocument(0);
+            return nullptr;
 
         if (d["type"] == "connection_request")
-            return HandleConnect(d);
+            return HandleConnect(dat);
 
-        if (d["type"] == "disconnect_request")
-            return HandleDisconnect(d);
+        if (remoteMAC != "" && d["source"] != remoteMAC)
+            return nullptr;
 
         if (d["sessionID"] != sessionID) {
             if (IsConnected)
                 Close(d["source"]);
 
-            Serial.println("Closed connection, invalid query: " + d["type"].as<String>());
+            ESP_LOGD("fNET", "Tunnel %s: Closing connection due to invalid query: %s", portName.c_str(), d["type"].as<String>().c_str());
 
-            return DynamicJsonDocument(0);
+            return nullptr;
         }
 
-        return DynamicJsonDocument(0);
+        return nullptr;
     }
 
     void HandleMessage(void* param) {
@@ -408,14 +436,19 @@ public:
         if (d["port"] != portName)
             return;
 
-        String d_s;
-        serializeJson(d, d_s);
-        Serial.println("received: " + d_s);
+        if (remoteMAC != "" && d["source"] != remoteMAC)
+            return;
+
+        //String d_s;
+        //serializeJson(d, d_s);
+        //ESP_LOGI("fNET", "Tunnel %s:%s : Received: %s", portName.c_str(), sessionID.c_str(), d_s.c_str());
 
         if (d["sessionID"] != sessionID) {
             if (IsConnected) {
                 if (d["type"] == "ping")
                     Close(d["source"]);
+                else if (d["type"] == "disconnect_request")
+                    HandleDisconnect();
                 else
                     LostConnection();
             }
@@ -429,39 +462,40 @@ public:
         lastTransmissionMS = millis();
 
         if (d["type"] == "data") {
-            //Serial.println("Received data!");
-            DynamicJsonDocument* r = new DynamicJsonDocument(d["data"].as<JsonObject>());
-            OnMessageReceived.Invoke(r);
+            DynamicJsonDocument r(d["data"].as<JsonObject>());
+            OnMessageReceived.Invoke(&r);
             //Serial.println("invpke ok!");
 
             if (receiveHandler != nullptr)
-                receiveHandler(*r);
+                receiveHandler(r);
 
             //Serial.println("handler ok!");
 
-            delete r;
             //Serial.println("delete ok!");
         }
-        else if (d["type"] == "ping") {
+        else if (d["type"] == "ping")
             Pong();
-        }
 
-        digitalWrite(2, LOW);
-        delay(100);
-        digitalWrite(2, HIGH);
+        //digitalWrite(2, LOW);
+        //delay(100);
+        //digitalWrite(2, HIGH);
+    }
+
+    void SetRemoteMAC(String rm) {
+        remoteMAC = rm;
     }
 
 protected:
     bool TryConnect() {
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connecting to " + remoteMAC + "...");
+        ESP_LOGD("fNET", "Tunnel %s:%s : Connecting to: %s", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
 
         if (!Initialized) {
-            Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Tunnel not initialized!");
+            ESP_LOGE("fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
             return false;
         }
 
         if (!Available) {
-            Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Tunnel not available to connect.");
+            ESP_LOGE("fNET", "Tunnel %s : Tunnel not available to connect.", portName.c_str());
             return false;
         }
 
@@ -470,26 +504,21 @@ protected:
         GenerateSessionID();
 
         DynamicJsonDocument result(128);
+
         bool ok = false;
-        for (int i = 0; i < 5; i++) {
-            DynamicJsonDocument d = GetQueryFormat("connection_request");
-            ok = c->Query(remoteMAC, "fNETTunnelPort_" + portName, &d, &result);
-
-            if (ok || remoteMAC == "")
-                break;
-
-            delay(200);
-        }
+        DynamicJsonDocument& d = *GetQueryFormat("connection_request");
+        ok = c->Query(remoteMAC, "fNETTunnelPort_" + portName, &d, &result);
+        delete& d;
 
         if (!ok) {
             return false;
-            Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connection failed ( query error ).");
+            ESP_LOGE("fNET", "Tunnel %s:%s : Connection failed (query error).", portName.c_str(), sessionID.c_str());
         }
         //Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Got query result.");
 
         if (result["status"] != "ok") {
-            Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connection failed ( invalid state ).");
-            Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] State: " + result["status"].as<String>());
+            ESP_LOGE("fNET", "Tunnel %s:%s : Connection failed (invalid state).", portName.c_str(), sessionID.c_str());
+            ESP_LOGE("fNET", "Tunnel %s:%s : State: %s", portName, sessionID, result["status"].as<String>());
             return false;
         }
 
@@ -497,7 +526,7 @@ protected:
         Available = false;
 
 
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connected!");
+        ESP_LOGD("fNET", "Tunnel %s:%s : Connected.", portName.c_str(), sessionID.c_str());
         OnConnect.Invoke(&remoteMAC);
         lastTransmissionMS = millis();
 
@@ -509,54 +538,50 @@ protected:
         sessionID = "FNT-" + String((unsigned long)random, 16U);
     }
 
-    DynamicJsonDocument HandleConnect(DynamicJsonDocument d) {
-        Serial.println("[fNet Tunnel " + portName + "] Received connection request.");
+    DynamicJsonDocument* HandleConnect(DynamicJsonDocument* dat) {
+        ESP_LOGD("fNET", "Tunnel %s : Received connection request.", portName.c_str());
 
-        DynamicJsonDocument r(256);
-        r["status"] = "refused";
+        DynamicJsonDocument& d = *dat;
+        DynamicJsonDocument* r = new DynamicJsonDocument(256);
+        (*r)["status"] = "refused";
 
-        if (!Accept && d["from"] != remoteMAC)
+        if (!Accept && d["source"] != remoteMAC)
             return r;
 
-        if (!Available && d["from"] != remoteMAC)
+        if (!Available && d["source"] != remoteMAC)
             return r;
 
         Available = false;
         IsConnected = true;
 
         sessionID = d["sessionID"].as<String>();
-        remoteMAC = d["from"].as<String>();
+        remoteMAC = d["source"].as<String>();
 
         OnConnect.Invoke(&remoteMAC);
 
-        r["status"] = "ok";
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connected to " + remoteMAC + "!");
+        (*r)["status"] = "ok";
+
+        ESP_LOGD("fNET", "Tunnel %s:%s : Connected to %s.", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
 
         lastTransmissionMS = millis();
 
         return r;
     }
 
-    DynamicJsonDocument HandleDisconnect(DynamicJsonDocument d) {
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Connection closed by remote host.");
-
-        DynamicJsonDocument r(64);
-
-        r["status"] = "disconnected";
+    DynamicJsonDocument& HandleDisconnect() {
+        ESP_LOGD("fNET", "Tunnel %s:%s : Connection closed by remote host.", portName.c_str(), sessionID.c_str());
 
         String rm = remoteMAC;
 
         LostConnection();
         OnDisconnect.Invoke(&rm);
-
-        return r;
     }
 
     void LostConnection() {
-        Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Lost connection.");
+        ESP_LOGD("fNET", "Tunnel %s:%s : Lost connection.", portName.c_str(), sessionID.c_str());
 
         sessionID = "";
-        remoteMAC = "";
+        //remoteMAC = "";
 
         IsConnected = false;
         Available = true;
@@ -576,11 +601,15 @@ protected:
 
     void Ping() {
         lastPingMS = millis();
-        //Serial.println("Pinging");
-        c->Send(GetMessageFormat("ping"));
+
+        DynamicJsonDocument& d = *GetMessageFormat("ping");
+        c->Send(d);
+        delete& d;
     }
     void Pong() {
-        c->Send(GetMessageFormat("pong"));
+        DynamicJsonDocument& d = *GetMessageFormat("pong");
+        c->Send(d);
+        delete& d;
     }
 
     void CheckConnection() {
@@ -595,35 +624,35 @@ protected:
     }
 
 
-    DynamicJsonDocument GetMessageFormat(String type) {
+    DynamicJsonDocument* GetMessageFormat(String type) {
         return GetMessageFormat(type, 256);
     }
 
-    DynamicJsonDocument GetMessageFormat(String type, int bytes) {
-        DynamicJsonDocument d(bytes);
+    DynamicJsonDocument* GetMessageFormat(String type, int bytes) {
+        DynamicJsonDocument& d = *new DynamicJsonDocument(bytes);
 
         d["port"] = portName;
         d["tag"] = "fNETTunnel";
         d["type"] = type;
         d["sessionID"] = sessionID;
-        d["from"] = c->mac;
+        d["source"] = c->mac;
 
         d["recipient"] = remoteMAC;
 
-        return d;
+        return &d;
     }
 
-    DynamicJsonDocument GetQueryFormat(String type) {
-        DynamicJsonDocument d(256);
+    DynamicJsonDocument* GetQueryFormat(String type) {
+        DynamicJsonDocument& d = *new DynamicJsonDocument(256);
 
         d["port"] = portName;
         d["sessionID"] = sessionID;
-        d["from"] = c->mac;
+        d["source"] = c->mac;
         d["type"] = type;
 
         d["query"] = "fNETTunnelPort_" + portName;
 
-        return d;
+        return &d;
     }
 
 public:
@@ -631,6 +660,9 @@ public:
     bool Available = true;
     bool Accept = false;
     bool Initialized = false;
+    long lastTransmissionMS = 0;
+
+    String remoteMAC;
 
     Event OnConnect;
     Event OnDisconnect;
@@ -638,14 +670,12 @@ public:
 
 protected:
     String portName;
-    String remoteMAC;
     fNETConnection* c;
 
     String sessionID;
 
-    void (*receiveHandler)(DynamicJsonDocument) = nullptr;
+    void (*receiveHandler)(DynamicJsonDocument&) = nullptr;
 
-    long lastTransmissionMS = 0;
     long lastPingMS = 0;
     long lastConnectionAttemptMS = 0;
 };
@@ -654,6 +684,10 @@ protected:
 bool IsValidMACAddress(String mac);
 uint8_t* ToMACAddress(String mac);
 String ToMACString(const uint8_t* mac);
+
+bool IsValidChipID(String ID);
+uint32_t ToChipID(String ID);
+String ToChipID(uint32_t ID);
 
 class fNET_ESPNOW {
 public:
@@ -669,6 +703,10 @@ public:
 
         void OnReceiveMessage(DynamicJsonDocument d) {
             fNETConnection::OnReceiveMessageService(d);
+        }
+
+        bool IsAddressValid(String address) override {
+            return IsValidMACAddress(address);
         }
     };
 
@@ -786,6 +824,133 @@ private:
             Serial.println("[ESP-NOW] Send failed, status: " + String(status));
         //else
         //    Serial.println("[ESP-NOW] Send OK.");
+    }
+};
+
+class fNET_Mesh {
+public:
+    class Connection_t : public fNETConnection {
+    public:
+        Connection_t(String id) : fNETConnection(id) {
+
+        }
+
+        bool SendMessage(String d, String r) override {
+            return send(d, ToChipID(r));
+        }
+
+        void OnReceiveMessage(DynamicJsonDocument& d) {
+            fNETConnection::OnReceiveMessageService(d);
+        }
+
+        bool IsAddressValid(String address) override {
+            return IsValidChipID(address);
+        }
+
+        void Ping(String id) override {
+            ping(ToChipID(id));
+        }
+    };
+
+    static painlessMesh* mesh;
+
+    static Connection_t* Init(painlessMesh* Mesh) {
+        ESP_LOGD("fNET", "Mesh: Initializing.");
+        ESP_LOGD("fNET", "Mesh: I am: %s", ToChipID(Mesh->getNodeId()).c_str());
+
+        mesh = Mesh;
+
+        xTaskCreate(update_task, "mesh_update", 8192, NULL, 0, NULL);
+        xTaskCreate(event_task, "mesh_msg_proc", 8192, NULL, 0, &event_task_handle);
+
+        mesh->onReceive(&on_received_data);
+        mesh->onNodeDelayReceived(&on_ping_return);
+        //mesh.init(SSID, Password, Port);
+
+        Connection = new Connection_t(ToChipID(mesh->getNodeId()));
+
+        return Connection;
+
+    }
+private:
+    static Connection_t* Connection;
+
+    static bool send(String msg, uint32_t dest) {
+        ESP_LOGV("fNET", "Mesh: Sending %s to %s.", msg.c_str(), String(dest, 16).c_str());
+
+        bool result;
+
+        if (dest == 0xFFFFFFFF)
+            result = mesh->sendBroadcast(msg, false);
+        else
+            result = mesh->sendSingle(dest, msg);
+
+        if (!result) {
+            ESP_LOGV("fNET", "Mesh: Failed to send.");
+            ESP_LOGV("fNET", "Mesh: Data was: %s", msg.c_str());
+
+            return false;
+        }
+
+        return true;
+    }
+
+    static CircularBuffer<DynamicJsonDocument*, 32> event_queue;
+    static TaskHandle_t event_task_handle;
+
+    static void event_task(void* param) {
+        while (true) {
+            while (!event_queue.isEmpty())
+            {
+                DynamicJsonDocument* d = event_queue.shift();
+                ESP_LOGV("fNET", "Mesh: Processing message: %s", (*d)["source"].as<String>().c_str());
+                Connection->OnReceiveMessage(*d);
+                delete d;
+            }
+
+            vTaskSuspend(NULL);
+            delay(0);
+        }
+    }
+
+    static void update_task(void* param) {
+        long last_millis = millis();
+        while (true) {
+            mesh->update();
+            delay(10);
+
+            if (millis() - last_millis > 30)
+                ESP_LOGD("fNET", "Mesh: Update took too long: %d ms.", millis() - last_millis);
+
+            last_millis = millis();
+        }
+    }
+
+    static void on_received_data(const uint32_t from, String received) {
+        ESP_LOGV("fNET", "Mesh: Received message: %s", received.c_str());
+        DynamicJsonDocument* d = new DynamicJsonDocument(2048);
+
+        //Serial.println("[ESP-NOW] Buffer: " + buffer);
+        if (deserializeJson(*d, received) == DeserializationError::Ok) {
+            (*d).shrinkToFit();
+            event_queue.push(d);
+            vTaskResume(event_task_handle);
+        }
+        else {
+            ESP_LOGE("fNET", "Mesh: Received malformed message: %s", received.c_str());
+            //delete d;
+        }
+    }
+
+    static void on_ping_return(uint32_t mac, int32_t ping) {
+        PingData d = PingData();
+        d.mac = ToChipID(mac);
+        d.ping = ping;
+        Connection->OnPingReceived.Invoke((void*)&d);
+    }
+
+    static void ping(uint32_t mac) {
+        mesh->startDelayMeas(mac);
     }
 };
 

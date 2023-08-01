@@ -25,12 +25,13 @@ int fGUI::buttons[16];
 int fGUI::numButtons;
 bool fGUI::buttonDown;
 
-long fGUI::lastInteractionMS;
+long fGUI::lastInteractionMS = -100000;
 long fGUI::lastDrawMS;
 
 int fGUI::CurrentOpenMenu;
 
 bool fGUI::initialized;
+bool fGUI::SpriteInitialized;
 
 void DrawTextCentered(TFT_eSprite* d, String text, int x, int y) {
     int w = d->textWidth(text);

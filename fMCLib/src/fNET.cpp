@@ -5,6 +5,9 @@ int fNETTunnel::TunnelManager::tunnelNum = 0;
 fNETTunnel* fNETTunnel::TunnelManager::tunnels[64];
 
 bool IsValidMACAddress(String mac) {
+    if (mac == "broadcast")
+        mac = true;
+
     if (mac.length() < 17)
         return false;
 
@@ -22,6 +25,9 @@ bool IsValidMACAddress(String mac) {
 }
 
 uint8_t* ToMACAddress(String mac) {
+    if (mac == "broadcast")
+        mac = "FF:FF:FF:FF:FF:FF";
+
     if (mac[2] != ':' || mac[5] != ':' || mac[8] != ':' || mac[11] != ':' || mac[14] != ':')
         return nullptr;
 
@@ -49,9 +55,46 @@ String ToMACString(const uint8_t* mac) {
     m += String((int)mac[4], 16) + ":";
     m += String((int)mac[5], 16);
 
+    if (m == "FF:FF:FF:FF:FF:FF")
+        return "broadcast";
+
     return m;
+}
+
+bool IsValidChipID(String ID) {
+    if (ID == "broadcast")
+        return true;
+
+    if (ID.length() < 8)
+        return false;
+
+    if (ToChipID(ID) < 0x10000000)
+        return false;
+
+    return true;
+}
+
+uint32_t ToChipID(String ID) {
+    if (ID == "broadcast")
+        return 0xFFFFFFFF;
+
+    return strtoll(ID.c_str(), NULL, 16);
+}
+
+String ToChipID(uint32_t ID) {
+    if (ID == 0xFFFFFFFF)
+        return "broadcast";
+
+    String ret = String(ID, 16);
+    ret.toUpperCase();
+
+    return ret;
 }
 
 String fNET_ESPNOW::buffer;
 fNET_ESPNOW::Connection_t* fNET_ESPNOW::Connection;
-//CircularBuffer<DynamicJsonDocument*, 32> fNET_ESPNOW::event_queue;
+
+painlessMesh* fNET_Mesh::mesh;
+fNET_Mesh::Connection_t* fNET_Mesh::Connection;
+TaskHandle_t fNET_Mesh::event_task_handle;
+CircularBuffer<DynamicJsonDocument*, 32> fNET_Mesh::event_queue;
