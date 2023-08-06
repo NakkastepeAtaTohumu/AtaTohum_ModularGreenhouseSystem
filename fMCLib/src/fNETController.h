@@ -82,6 +82,16 @@ public:
             SendCommand("restart");
         }
 
+        void Restart(String name) {
+            ESP_LOGI("fNET Controller", "Module: %s, Sent set name request.", MAC_Address.c_str());
+
+            DynamicJsonDocument d(256);
+            d["command"] = "setName";
+            d["name"] = name;
+
+            comm_tunnel->Send(d);
+        }
+
         void SendCommand(String command) {
             DynamicJsonDocument d(256);
             d["command"] = command;

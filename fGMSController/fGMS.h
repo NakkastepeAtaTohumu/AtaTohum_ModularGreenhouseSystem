@@ -8,8 +8,8 @@
 #include "FS.h"
 
 #include <WiFi.h>
-//#include <NTPClient.h>
-//#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 using namespace fs;
 
@@ -88,8 +88,6 @@ public:
         }
 
         float GetRaw() {
-            return 1.5;
-
             if (Module == nullptr || Channel <= -1)
                 return -1;
 
@@ -204,6 +202,9 @@ public:
         bool isWatering = false;
 
         bool UpdateWateringState() {
+            if (isOverride)
+                return overrideWater;
+
             if (isWatering && GetAverage() > map_max)
                 isWatering = false;
 
@@ -212,6 +213,14 @@ public:
 
             return isWatering;
         }
+
+        void SetOverride(bool enable, bool water) {
+            isOverride = enable;
+            overrideWater = water;
+        }
+
+        bool isOverride = false;
+        bool overrideWater = false;
     };
 
     class Module {
@@ -248,6 +257,9 @@ public:
 
         virtual void Update() {
             if (mdl == nullptr || !mdl->isOnline) {
+                ok = false;
+                value_received = false;
+
                 tunnel->SetRemoteMAC("");
                 return;
             }
@@ -444,19 +456,19 @@ public:
 
     static fNETConnection* fNET;
 
-    static Hygrometer* Hygrometers[1024];
+    static Hygrometer* Hygrometers[32];
     static int HygrometerCount;
 
-    static HygrometerGroup* HygrometerGroups[64];
+    static HygrometerGroup* HygrometerGroups[16];
     static int HygrometerGroupCount;
 
-    static HygrometerModule* HygrometerModules[128];
+    static HygrometerModule* HygrometerModules[4];
     static int HygrometerModuleCount;
 
-    static ValveModule* ValveModules[16];
+    static ValveModule* ValveModules[4];
     static int ValveModuleCount;
 
-    static SensorModule* SensorModules[16];
+    static SensorModule* SensorModules[4];
     static int SensorModuleCount;
 
     static Greenhouse greenhouse;
@@ -678,7 +690,7 @@ public:
     static bool serverEnabled;
 
     static WiFiUDP ntp_udp;
-    //static NTPClient ntp_client;
+    static NTPClient ntp_client;
 
     static bool AutomaticWatering;
 
@@ -690,13 +702,13 @@ public:
             return false;
 
         unsigned long epoch;
-        /*if (WiFi.isConnected())
+        if (WiFi.isConnected())
             epoch = ntp_client.getEpochTime();
         else
-            */epoch = millis() / 1000;
+            epoch = millis() / 1000;
 
-            int phase = epoch % watering_period;
-            return phase < watering_active_period;
+        int phase = epoch % watering_period;
+        return phase < watering_active_period;
     }
 
     static int GetSecondsUntilWatering() {
@@ -707,13 +719,13 @@ public:
             return 0;
 
         unsigned long epoch;
-        /*if (WiFi.isConnected())
+        if (WiFi.isConnected())
             epoch = ntp_client.getEpochTime();
         else
-            */epoch = millis() / 1000;
+            epoch = millis() / 1000;
 
-            int phase = epoch % watering_period;
-            return watering_period - phase;
+        int phase = epoch % watering_period;
+        return watering_period - phase;
     }
 
     static int GetSecondsToWater() {
@@ -724,13 +736,13 @@ public:
             return 0;
 
         unsigned long epoch;
-        /*if (WiFi.isConnected())
+        if (WiFi.isConnected())
             epoch = ntp_client.getEpochTime();
         else
-            */epoch = millis() / 1000;
+            epoch = millis() / 1000;
 
-            int phase = epoch % watering_period;
-            return watering_active_period - phase;
+        int phase = epoch % watering_period;
+        return watering_active_period - phase;
     }
 
 private:
@@ -749,8 +761,8 @@ private:
                 SensorModules[i]->Update();
 
 
-            //if(WiFi.isConnected())
-            //    ntp_client.update();
+            if(WiFi.isConnected())
+                ntp_client.update();
 
             if (millis() - last_refreshed > 5000) {
                 updateHygrometerModules();
@@ -856,6 +868,11 @@ private:
             return;
         }
 
+        if (m->mdl->Config["ModuleType"] != "HygroCtl") {
+            delete m;
+            return;
+        }
+
         for (int i = 0; i < HygrometerModuleCount; i++) {
             if (HygrometerModules[i]->module_mac == m->module_mac) {
                 delete m;
@@ -879,6 +896,11 @@ private:
             return;
         }
 
+        if (m->mdl->Config["ModuleType"] != "ValveCtl") {
+            delete m;
+            return;
+        }
+
         for (int i = 0; i < ValveModuleCount; i++) {
             if (ValveModules[i]->module_mac == m->module_mac) {
                 delete m;
@@ -898,6 +920,11 @@ private:
         }
 
         if (m->mdl == nullptr) {
+            delete m;
+            return;
+        }
+
+        if (m->mdl->Config["ModuleType"] != "AirSensor") {
             delete m;
             return;
         }
@@ -965,8 +992,8 @@ private:
     }
 
     static void update_watering() {
-        //if (WiFi.isConnected() && ntp_client.getEpochTime() < 1600000000 /*around 13 sep 2020*/)
-        //    return; //NTP not set up.
+        if (WiFi.isConnected() && ntp_client.getEpochTime() < 1600000000 /*around 13 sep 2020*/)
+            return; //NTP not set up.
 
         bool watering = IsWatering();
 
@@ -982,7 +1009,7 @@ private:
             {
                 ValveModule* v = ValveModules[i];
                 if (v->State > 0)
-                    v->SetState(0b0000);
+                    v->NextState = 0b0000;
             }
 
             return;
@@ -993,7 +1020,7 @@ private:
             bool shouldWater = g->UpdateWateringState();
 
             if (g->mod != nullptr)
-                g->mod->SetState(g->channel, shouldWater);
+                g->mod->QueueState(g->channel, shouldWater);
         }
     }
 };

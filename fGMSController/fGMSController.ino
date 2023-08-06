@@ -11,6 +11,7 @@
 #include <Update.h>
 #include <SPIFFS.h>
 #include <AsyncTCP.h>
+#include <NTPClient.h>
 
 #include "fNETLib.h"
 
@@ -79,8 +80,8 @@ void setup() {
 
     mesh.init("Ata_Tohum_MESH", "16777216", 11753, WIFI_MODE_APSTA, 1);
 
-    mesh.stationManual("ARMATRON_NETWORK", "16777216");
-    mesh.setHostname("Ata_Tohum_MAIN");
+    mesh.stationManual("Ata_Tohum_Sera", "Sera_16777216", 0, IPAddress(192, 168, 5, 4));
+    mesh.setHostname("Ata_Tohum_Controller");
 
     mesh.setRoot(true);
     mesh.setContainsRoot(true);

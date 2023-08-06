@@ -860,8 +860,8 @@ public:
 
         mesh = Mesh;
 
-        xTaskCreate(update_task, "mesh_update", 8192, NULL, 0, NULL);
-        xTaskCreate(event_task, "mesh_msg_proc", 8192, NULL, 0, &event_task_handle);
+        xTaskCreate(update_task, "mesh_update", 4096, NULL, 0, NULL);
+        xTaskCreate(event_task, "mesh_msg_proc", 3072, NULL, 0, &event_task_handle);
 
         mesh->onReceive(&on_received_data);
         mesh->onNodeDelayReceived(&on_ping_return);

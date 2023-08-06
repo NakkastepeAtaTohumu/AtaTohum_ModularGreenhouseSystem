@@ -79,7 +79,7 @@ public:
                 r->send(400, "text/html", "no_change");
             });
 
-        server->on("/restart", [](AsyncWebServerRequest* r) {
+        server->on("/restartModule", [](AsyncWebServerRequest* r) {
             if (!r->hasParam("module"))
             {
                 r->send(400, "text/html", "Invalid request");
@@ -386,7 +386,7 @@ private:
     static long restartMS;
 
     static DynamicJsonDocument& GetConfigJSON() {
-        DynamicJsonDocument& d = *new DynamicJsonDocument(8092);
+        DynamicJsonDocument& d = *new DynamicJsonDocument(8192);
 
         JsonArray hygrometersArray = d.createNestedArray("hygrometers");
 
@@ -417,16 +417,34 @@ private:
 
         JsonArray devicesArray = d.createNestedArray("devices");
 
+        for (int i = 0; i < fGMS::HygrometerModuleCount; i++) {
+            fGMS::HygrometerModule* mdl = fGMS::HygrometerModules[i];
+            JsonObject o = devicesArray.createNestedObject();
+
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "hygro";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
+
+            JsonObject data = o.createNestedObject("d");
+            JsonArray values_array = data.createNestedArray("values");
+
+            for (int i = 0; i < mdl->Channels; i++)
+                values_array.add(floor(mdl->Values[i] * 100.0) / 100.0);
+
+            data["channels"] = mdl->Channels;
+        }
+
         for (int i = 0; i < fGMS::ValveModuleCount; i++) {
             fGMS::ValveModule* mdl = fGMS::ValveModules[i];
             JsonObject o = devicesArray.createNestedObject();
 
-            o["name"] = mdl->mdl->Config["name"];
-            o["type"] = "valveModule";
-            o["mac"] = mdl->module_mac;
-            o["ok"] = mdl->ok;
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "valve";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
 
-            JsonObject data = o.createNestedObject("data");
+            JsonObject data = o.createNestedObject("d");
 
             data["state"] = mdl->State;
         }
@@ -435,12 +453,12 @@ private:
             fGMS::SensorModule* mdl = fGMS::SensorModules[i];
             JsonObject o = devicesArray.createNestedObject();
 
-            o["name"] = mdl->mdl->Config["name"];
-            o["type"] = "sensorModule";
-            o["mac"] = mdl->module_mac;
-            o["ok"] = mdl->ok;
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "sensor";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
 
-            JsonObject data = o.createNestedObject("data");
+            JsonObject data = o.createNestedObject("d");
 
             data["CO2"] = mdl->ppm;
             data["temp"] = mdl->temp;
@@ -456,7 +474,7 @@ private:
     }
 
     static DynamicJsonDocument& GetDataJSON() {
-        DynamicJsonDocument& d = *new DynamicJsonDocument(8092);
+        DynamicJsonDocument& d = *new DynamicJsonDocument(8192);
 
         JsonArray hygrometersArray = d.createNestedArray("h_val");
 
@@ -472,16 +490,34 @@ private:
 
         JsonArray devicesArray = d.createNestedArray("devices");
 
+        for (int i = 0; i < fGMS::HygrometerModuleCount; i++) {
+            fGMS::HygrometerModule* mdl = fGMS::HygrometerModules[i];
+            JsonObject o = devicesArray.createNestedObject();
+
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "hygro";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
+
+            JsonObject data = o.createNestedObject("d");
+            JsonArray values_array = data.createNestedArray("values");
+
+            for (int i = 0; i < mdl->Channels; i++)
+                values_array.add(floor(mdl->Values[i] * 100.0) / 100.0);
+
+            data["channels"] = mdl->Channels;
+        }
+
         for (int i = 0; i < fGMS::ValveModuleCount; i++) {
             fGMS::ValveModule* mdl = fGMS::ValveModules[i];
             JsonObject o = devicesArray.createNestedObject();
 
-            o["name"] = mdl->mdl->Config["name"];
-            o["type"] = "valveModule";
-            o["mac"] = mdl->module_mac;
-            o["ok"] = mdl->ok;
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "valve";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
 
-            JsonObject data = o.createNestedObject("data");
+            JsonObject data = o.createNestedObject("d");
 
             data["state"] = mdl->State;
         }
@@ -490,12 +526,12 @@ private:
             fGMS::SensorModule* mdl = fGMS::SensorModules[i];
             JsonObject o = devicesArray.createNestedObject();
 
-            o["name"] = mdl->mdl->Config["name"];
-            o["type"] = "sensorModule";
-            o["mac"] = mdl->module_mac;
-            o["ok"] = mdl->ok;
+            o["n"] = mdl->mdl->Config["name"];
+            o["t"] = "sensor";
+            o["m"] = mdl->module_mac;
+            o["o"] = mdl->ok;
 
-            JsonObject data = o.createNestedObject("data");
+            JsonObject data = o.createNestedObject("d");
 
             data["CO2"] = mdl->ppm;
             data["temp"] = mdl->temp;

@@ -40,7 +40,7 @@ public:
         Connection = c;
         comm_tunnel = new fNETTunnel(c, "fNET_Comm");
 
-        comm_tunnel->OnMessageReceived.AddHandler(new EventHandlerFunc([](void* d) {OnReceiveMessage((DynamicJsonDocument*)d); }));
+        comm_tunnel->OnMessageReceived.AddHandler(new EventHandlerFunc([](void* d) {OnReceiveMessage((DynamicJsonDocument*)d, true); }));
         comm_tunnel->OnConnect.AddHandler(new EventHandlerFunc([](void* d) {OnReconnect(); }));
         comm_tunnel->OnDisconnect.AddHandler(new EventHandlerFunc([](void* d) {OnDisconnect(); }));
 
@@ -65,7 +65,6 @@ public:
         Connection->MessageReceived = OnReceiveMessage;
 
         xTaskCreate(MainTask, "fNET_MainTask", 8192, nullptr, 0, nullptr);
-
         return Connection;
     }
 
@@ -115,6 +114,30 @@ public:
         }
     }
 
+    static void Update() {
+        UpdateSignalState();
+
+        if (comm_tunnel->IsConnected)
+            LastOKMS = millis();
+
+        if (!comm_tunnel->IsConnected && millis() - LastOKMS > 5000 && Connection->IsAddressValid(ControllerMAC) && millis() - LastConnectionAttemptMS > 1000)
+            SendConnectionRequest(ControllerMAC);
+
+        if (!comm_tunnel->IsConnected && millis() - LastOKMS > 10000 && millis() - LastConnectionAttemptMS > 1000)
+            Scan();
+
+        if (comm_tunnel->IsConnected) {
+            if (data["controllerMac"] != ControllerMAC) {
+                data["controllerMac"] = ControllerMAC;
+                Save();
+            }
+
+            if (!config_sent && millis() - LastConfigSentMS > 2000)
+                SendConfig();
+
+        }
+    }
+
 private:
     static bool err, fatal_err, config_sent;
     static String ControllerMAC, ConnectionMAC;
@@ -122,27 +145,7 @@ private:
 
     static void MainTask(void* param) {
         while (true) {
-            UpdateSignalState();
-
-            if (comm_tunnel->IsConnected)
-                LastOKMS = millis();
-
-            if (!comm_tunnel->IsConnected && millis() - LastOKMS > 5000 && Connection->IsAddressValid(ControllerMAC) && millis() - LastConnectionAttemptMS > 1000)
-                SendConnectionRequest(ControllerMAC);
-
-            if (!comm_tunnel->IsConnected && millis() - LastOKMS > 10000 && millis() - LastConnectionAttemptMS > 1000)
-                Scan();
-
-            if (comm_tunnel->IsConnected) {
-                if (data["controllerMac"] != ControllerMAC) {
-                    data["controllerMac"] = ControllerMAC;
-                    Save();
-                }
-
-                if (!config_sent && millis() - LastConfigSentMS > 2000)
-                    SendConfig();
-
-            }
+            Update();
             delay(250);
         }
     }
@@ -270,7 +273,12 @@ private:
     }
 
     static void OnReceiveMessage(DynamicJsonDocument* dat) {
+        OnReceiveMessage(dat, false);
+    }
+
+    static void OnReceiveMessage(DynamicJsonDocument* dat, bool secure = false) {
         DynamicJsonDocument& d = *dat;
+
         if (d.containsKey("command")) {
             ESP_LOGV("fNET Module", "Received Command.");
 
@@ -280,7 +288,7 @@ private:
             if (d["command"] == "available")
                 OnReceiveDiscovery(d);
 
-            if (d["source"] != ControllerMAC)
+            if (!secure && d["source"] != ControllerMAC)
                 return;
 
             if (d["command"] == "getConfig")
