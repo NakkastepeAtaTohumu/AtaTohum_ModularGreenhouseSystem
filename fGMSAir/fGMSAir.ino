@@ -2,10 +2,17 @@
 #include <Adafruit_ADS1X15.h>
 #include <Adafruit_I2CDevice.h>
 
+#include <painlessMesh.h>
+
 #include "soc/rtc_cntl_reg.h"
 
 #include <SPI.h>
 #include <Wire.h>
+
+#include <ESPmDNS.h>
+#include <Update.h>
+#include <SPIFFS.h>
+#include <AsyncTCP.h>
 
 #include <WiFi.h>
 
@@ -16,11 +23,13 @@ HardwareSerial CO2SensorUART(1);
 
 Adafruit_SHT31 airSensor(&auxI2C);
 
-float sendInterval = 0;
+float sendInterval = 2000;
 bool fanOn = false;
 
 fNETConnection* c;
 fNETTunnel* tunnel;
+
+painlessMesh mesh;
 
 byte CO2UART_GetCheckSum(byte* packet)
 {
@@ -79,13 +88,26 @@ void setup() {
     Serial.begin(115200);
     ESP_LOGE("fGMS AirSensor", "Air Sensor starting");
 
-    fNETModule::Idle_blink(5000);
     WiFi.mode(WIFI_STA);
 
-    c = fNETModule::Init();
-    Serial.println("Module ok.");
-    fNETModule::data["ModuleType"] = "AirSensor";
+    mesh.init("Ata_Tohum_MESH", "16777216", 11753, WIFI_MODE_APSTA, 1);
 
+    //mesh.setRoot(true);
+    mesh.setContainsRoot(true);
+
+    //MDNS.begin("Ata_Tohum_Hygro_A");
+    //WiFi.setHostname("Ata_Tohum_Hygro_A");
+
+    //mesh.stationManual("ARMATRON_NETWORK", "16777216");
+    //mesh.setHostname("Ata_Tohum_MAIN");
+
+    c = fNET_Mesh::Init(&mesh);
+
+    Serial.println("Waiting for mesh to form.");
+    fNETModule::Idle_blink(10000);
+
+    fNETModule::Init(c);
+    fNETModule::data["ModuleType"] = "AirSensor";
     fNETModule::data["name"] = "AIR A";
 
 
@@ -149,23 +171,23 @@ void setup() {
     delay(1000);
     SetFan(false);
 
-    c->AddQueryResponder("setValueInterval", [](DynamicJsonDocument q) {
-        sendInterval = q["interval"];
+    c->AddQueryResponder("setValueInterval", [](DynamicJsonDocument* q) {
+        sendInterval = (*q)["interval"];
 
         ESP_LOGD("fGMS AirSensor", "Set send interval : %f ms.", sendInterval);
 
-        DynamicJsonDocument resp(256);
+        DynamicJsonDocument& resp = *new DynamicJsonDocument(256);
         resp["interval"] = String(sendInterval);
-        return resp;
+        return &resp;
         });
 
-    c->AddQueryResponder("setFan", [](DynamicJsonDocument q) {
-        SetFan(q["enabled"]);
+    c->AddQueryResponder("setFan", [](DynamicJsonDocument* q) {
+        SetFan((*q)["enabled"]);
         xTaskCreate(save_task, "save_t", 4096, NULL, 0, NULL);
 
-        DynamicJsonDocument resp(256);
+        DynamicJsonDocument& resp = *new DynamicJsonDocument(256);
         resp["enabled"] = String(fanOn);
-        return resp;
+        return &resp;
         });
 
     tunnel = new fNETTunnel(c, "data");
@@ -195,7 +217,7 @@ DynamicJsonDocument GetValueJSON() {
 }
 
 void SendData() {
-    if (sendInterval != 0 && millis() - lastSentMS > sendInterval && c->GetQueuedMessageCount() <= 2) {
+    if (sendInterval != 0 && millis() - lastSentMS > sendInterval) {
         DynamicJsonDocument send = GetValueJSON();
         tunnel->Send(send);
 

@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fGMSController.ino" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="__vm\.fGMSController.vsarduino.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -47,5 +44,6 @@
     <ClCompile Include="fGMSServer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="fGMSController.ino" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,7 @@
 //#define I2C_BUFFER_LENGTH 128
+#define DEFAULT_FTP_SERVER_NETWORK_TYPE_ESP32 NETWORK_ESP32
+#define DEFAULT_STORAGE_TYPE_ESP32 STORAGE_LITTLEFS
+
 #include <painlessMesh.h>
 
 #include <SPI.h>
@@ -19,14 +22,17 @@
 #include <ESP32Encoder.h>
 #include <zutil.h>
 #include <PNGenc.h>
-#include "fGUILib.h"
+#include "fGUI.h"
 
 
 #include "fGMSControllerGUI.h"
 #include "fGMS.h"
 
+#include <Update.h>
 #include <ESPmDNS.h>
 #include <ESPAsyncWebServer.h>
+#include <FFat.h>
+#include <SimpleFTPServer.h>
 #include "fGMSServer.h"
 
 #include "esp_bt.h"
@@ -101,7 +107,7 @@ void setup() {
 
     fGMSServer::Init();
 
-    if (fGMS::serverEnabled) {
+    /*if (fGMS::serverEnabled) {
         //fGMS::serverEnabled = false;
         //fGMS::Save();
 
@@ -117,11 +123,11 @@ void setup() {
 
         fGUI::AddMenu(new ServerGUI());
 
-        fGUI::Init(/*e, 34*/);
-    }
-    else {
+        fGUI::Init(/*e, 34);*/
+    //}
+    //else {
         fGMSControllerMenu::Init();
-    }
+    //}
 
     //fGMS::Hygrometer* h = fGMS::CreateHygrometer();
     //fGMS::Save();

@@ -127,7 +127,7 @@ public:
             Scan();
 
         if (comm_tunnel->IsConnected) {
-            if (data["controllerMac"] != ControllerMAC) {
+            if (data["controllerMac"] != ControllerMAC && ControllerMAC != "") {
                 data["controllerMac"] = ControllerMAC;
                 Save();
             }
@@ -180,7 +180,7 @@ private:
 
         bool blink = (millis() % 1000) < 500;
 
-        if (!comm_tunnel->IsConnected) {
+        if (comm_tunnel->IsConnected) {
             State = CONNECTED_IDLE;
 
             if (working)

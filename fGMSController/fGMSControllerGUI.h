@@ -1,11 +1,11 @@
-#include "fGUILib.h"
-#include "fGUIElementMenu.h"
+#include "fGUI.h"
+#include "ElementMenu.h"
 #include "fNETController.h"
 #include "fGMS.h"
 
 class fGMSControllerMenu {
 private:
-    class TitleMenu : public fGUIElementMenu {
+    class TitleMenu : public ElementMenu {
     public:
         void InitializeElements() {
             AddElement(new TextElement("AtaTohum", width / 2, 20, 4, 1, TFT_GOLD));
@@ -25,7 +25,7 @@ private:
         }
     };
 
-    class ConfigMenu : public fGUIElementMenu {
+    class ConfigMenu : public ElementMenu {
     public:
         void InitializeElements() {
             AddElement(new Button("Mdl", 24, 40, 32, 32, 2, 1, TFT_BLACK, TFT_LIGHTGREY, []() { fGUI::OpenMenu(15); }, "Modules"));
@@ -39,7 +39,7 @@ private:
         }
     };
 
-    class DebugMenu : public fGUIElementMenu {
+    class DebugMenu : public ElementMenu {
     public:
         void InitializeElements() {
             AddElement(new Button("M", 24, 40, 32, 32, 2, 1, TFT_BLACK, TFT_LIGHTGREY, []() { fGUI::OpenMenu(2); }, "Modules"));
@@ -217,7 +217,7 @@ private:
         bool modulePresent = false;
     };
 
-    class ModuleMenuOverlay : public fGUIElementMenu {
+    class ModuleMenuOverlay : public ElementMenu {
     public:
         void InitializeElements() {
             AddElement(new PhysicalButton("I", 1, width - 12, 30, 12, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenu(7); }));
@@ -233,14 +233,14 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (fGUI::CurrentOpenMenu != 2)
                 fGUI::CloseMenuOnTop();
         }
     };
 
-    class ModuleMenuManageOverlay : public fGUIElementMenu {
+    class ModuleMenuManageOverlay : public ElementMenu {
     public:
         void InitializeElements() override {
             AddElement(new BoxElement(width / 2, 32, 48, 24, d->color24to16(0x202020)));
@@ -265,7 +265,7 @@ private:
         }
     };
 
-    class ModuleSettingsMenu : public fGUIElementMenu {
+    class ModuleSettingsMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             nameD = new TextElement("Module: MDLMDLM X", width / 2, 30, 0, 1, TFT_WHITE);
@@ -300,7 +300,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             nameD->t = "Module: " + mm->configured_element->type + " " + String(mm->configured_element->id);
             macD->t = mm->configured->MAC_Address;
@@ -313,7 +313,7 @@ private:
         TextElement* stateD;
     };
 
-    class ModuleStatsMenu : public fGUIElementMenu {
+    class ModuleStatsMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             nameD = new TextElement("Module: MDLMDLM X", width / 2, 30, 0, 1, TFT_WHITE);
@@ -331,7 +331,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             Update();
         }
@@ -346,7 +346,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMillis > 100) {
                 Update();
@@ -362,20 +362,20 @@ private:
         long lastUpdateMillis = 0;
     };
 
-    class AlertMenu : public fGUIElementMenu {
+    class AlertMenu : public ElementMenu {
     public:
         AlertMenu(String m) {
             msg = m;
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             opened_millis = millis();
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - opened_millis > 2500)
                 fGUI::ExitMenu();
@@ -539,7 +539,7 @@ private:
 
         void OnClick() override {
             fGUI::CloseMenuOnTop();
-            fGUI::OpenMenu(13);
+            fGUI::OpenMenu(11);
         }
 
         void Update() {
@@ -601,7 +601,7 @@ private:
         String name;
     };
 
-    class GreenhouseModuleConfigTabsMenu : public fGUIElementMenu {
+    class GreenhouseModuleConfigTabsMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             AddElement(new PhysicalButton("Hyg", 1, width - 12, 30, 24, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenuOnTop(9); }));
@@ -613,19 +613,19 @@ private:
         }
 
         void Exit() override {
-            fGUIElementMenu::Exit();
+            ElementMenu::Exit();
 
             fGUI::CloseMenuOnTop();
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             fGUI::OpenMenuOnTop(9);
         }
     };
 
-    class MonitorTabsMenu : public fGUIElementMenu {
+    class MonitorTabsMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             AddElement(new PhysicalButton("Hyg", 1, width - 12, 30, 24, 24, 0, 1, TFT_BLACK, TFT_SKYBLUE, []() { fGUI::CloseMenuOnTop(); fGUI::OpenMenuOnTop(19); }));
@@ -636,13 +636,13 @@ private:
         }
 
         void Exit() override {
-            fGUIElementMenu::Exit();
+            ElementMenu::Exit();
 
             fGUI::CloseMenuOnTop();
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             fGUI::OpenMenuOnTop(19);
         }
@@ -907,7 +907,7 @@ private:
         long lastUpdateMillis = 0;
     };
 
-    class HygrometerModuleConfigMenu : public fGUIElementMenu {
+    class HygrometerModuleConfigMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             nameD = new TextElement("HYGRO XX", width / 2, 30, 0, 1, TFT_WHITE);
@@ -926,7 +926,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             Update();
         }
@@ -968,7 +968,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMillis > 100) {
                 Update();
@@ -985,7 +985,7 @@ private:
         long lastUpdateMillis = 0;
     };
 
-    class ValveModuleConfigMenu : public fGUIElementMenu {
+    class ValveModuleConfigMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             nameD = new TextElement("VALVE XX", width / 2, 30, 0, 1, TFT_WHITE);
@@ -1013,7 +1013,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             Update();
 
@@ -1031,7 +1031,7 @@ private:
         }
 
         void Exit() override {
-            fGUIElementMenu::Exit();
+            ElementMenu::Exit();
 
             run = false;
         }
@@ -1051,7 +1051,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMillis > 100) {
                 Update();
@@ -1071,7 +1071,7 @@ private:
         long lastUpdateMillis = 0;
     };
 
-    class SensorModuleConfigMenu : public fGUIElementMenu {
+    class SensorModuleConfigMenu : public ElementMenu {
     public:
         void InitializeElements() override {
             nameD = new TextElement("AIR XX", width / 2, 30, 0, 1, TFT_WHITE);
@@ -1093,7 +1093,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             Update();
         }
@@ -1115,7 +1115,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMillis > 100) {
                 Update();
@@ -1132,7 +1132,7 @@ private:
     };
 
     class HygrometerDisplayElement;
-    class HygrometerPositionConfigMenu : public fGUIElementMenu {
+    class HygrometerPositionConfigMenu : public ElementMenu {
         void InitializeElements() override {
             AddElement(new BoxElement(width / 2, height / 2, 112, 144, d->color24to16(0x202020)));
 
@@ -1154,11 +1154,11 @@ private:
 
             hde->hyg = hscm->selected->hyg;
 
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             hscm->selected->hyg->x = x_in->Value;
             hscm->selected->hyg->y = y_in->Value;
@@ -1219,7 +1219,7 @@ private:
         int zoom_factor = 1;
     };
 
-    class GreenhouseSizeConfigMenu : public fGUIElementMenu {
+    class GreenhouseSizeConfigMenu : public ElementMenu {
         void InitializeElements() override {
             AddElement(new GreenhouseDisplayElement(width / 2, 80, 96, 96, d->color24to16(0x633e1a), TFT_LIGHTGREY));
             ((GreenhouseDisplayElement*)Elements[0])->draw_size = true;
@@ -1234,11 +1234,11 @@ private:
             x_in->Value = fGMS::greenhouse.x_size;
             y_in->Value = fGMS::greenhouse.y_size;
 
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             fGMS::greenhouse.x_size = x_in->Value;
             fGMS::greenhouse.y_size = y_in->Value;
@@ -1301,7 +1301,7 @@ private:
         bool displayValue = true;
     };
 
-    class HygrometersConfigMenu : public fGUIElementMenu {
+    class HygrometersConfigMenu : public ElementMenu {
         void InitializeElements() override {
             gde = new GreenhouseDisplayElement(width / 2, height / 2, 152, 152, d->color24to16(0x633e1a), TFT_LIGHTGREY);
             AddElement(gde);
@@ -1313,11 +1313,11 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMS > 5000)
                 Update();
@@ -1414,18 +1414,18 @@ private:
         }
     };
 
-    class MoistureMonitorMenu : public fGUIElementMenu {
+    class MoistureMonitorMenu : public ElementMenu {
         void InitializeElements() override {
             gde = new GreenhouseDisplayElement(width / 2, height / 2, 152, 152, d->color24to16(0x633e1a), TFT_LIGHTGREY);
             AddElement(gde);
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             if (millis() - lastUpdateMS > 5000)
                 Update();
@@ -1488,7 +1488,7 @@ private:
         HygrometerDisplayElement* selected;
     };
 
-    class HygrometerGroupConfigMenu : public fGUIElementMenu {
+    class HygrometerGroupConfigMenu : public ElementMenu {
         void InitializeElements() override {
             AddElement(new TextElement("Group XX", width / 2, 24, 0, 1, TFT_WHITE));
 
@@ -1513,7 +1513,7 @@ private:
         }
 
         void Enter() {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             UpdateModuleNames();
 
@@ -1535,7 +1535,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
             edited->channel = channelChoice->Value;
             if (moduleChoice->Value > 1)
                 edited->mod = fGMS::ValveModules[moduleChoice->Value - 2];
@@ -1573,7 +1573,7 @@ private:
         fGMS::HygrometerGroup* edited;
     };
 
-    class HygrometerConfigMenu : public fGUIElementMenu {
+    class HygrometerConfigMenu : public ElementMenu {
         void InitializeElements() override {
             AddElement(new TextElement("Hygrometer XX", width / 2, 24, 0, 1, TFT_WHITE));
 
@@ -1609,7 +1609,7 @@ private:
         }
 
         void Enter() {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
             UpdateModuleNames();
 
             ((TextElement*)Elements[0])->t = "Hygrometer " + String(hscm->selected->hyg->id);
@@ -1639,7 +1639,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             hscm->selected->hyg->Channel = channelChoice->Value;
             if (moduleChoice->Value > 1)
@@ -1661,7 +1661,7 @@ private:
         }
 
         void Exit() override {
-            fGUIElementMenu::Exit();
+            ElementMenu::Exit();
 
             if (groupChoice->Value != first_group) {
                 if (first_group != -1) {
@@ -1709,7 +1709,7 @@ private:
         String module_names[4];
     };
 
-    class EnableServerMenu : public fGUIElementMenu {
+    class EnableServerMenu : public ElementMenu {
     public:
         void InitializeElements() {
             AddElement(new TextElement("Server Enabled", width / 2, height / 2, 2, 1, TFT_GOLD));
@@ -1717,7 +1717,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             xTaskCreate(task, "enableServerTask", 8192, nullptr, 0, nullptr);
         }
@@ -1730,7 +1730,7 @@ private:
         }
     };
 
-    class WateringConfigMenu : public fGUIElementMenu {
+    class WateringConfigMenu : public ElementMenu {
         void InitializeElements() {
             AddElement(new NumberInputElement("Water", 16, 32, 0, 1, TFT_WHITE, TFT_DARKGREY));
             AddElement(new NumberInputElement("Every", 16, 48, 0, 1, TFT_WHITE, TFT_DARKGREY));
@@ -1746,7 +1746,7 @@ private:
         }
 
         void Enter() override {
-            fGUIElementMenu::Enter();
+            ElementMenu::Enter();
 
             int* period = &((NumberInputElement*)Elements[1])->Value;
             int* active = &((NumberInputElement*)Elements[0])->Value;
@@ -1756,7 +1756,7 @@ private:
         }
 
         void Draw() override {
-            fGUIElementMenu::Draw();
+            ElementMenu::Draw();
 
             Button* b = (Button*)Elements[2];
 
@@ -1809,7 +1809,7 @@ private:
         }
 
         void Exit() override {
-            fGUIElementMenu::Exit();
+            ElementMenu::Exit();
 
             fGMS::Save();
         }
@@ -1854,7 +1854,7 @@ public:
 
         //Serial.println("ICM Heap left: " + String(ESP.getFreeHeap()));
         //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
-        icm = new fGUIElementMenu();
+        icm = new ElementMenu();
 
         //Serial.println("HMM Heap left: " + String(ESP.getFreeHeap()));
         //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
@@ -1963,7 +1963,7 @@ public:
 
         //Serial.println("VMCM2 Heap left: " + String(ESP.getFreeHeap()));
         //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
-        fGUI::AddMenu(new fGUIElementMenu());     //14
+        fGUI::AddMenu(new ElementMenu());     //14
 
         //Serial.println("Heap left: " + String(ESP.getFreeHeap()));
         //Serial.println("Largest  : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
@@ -2056,7 +2056,7 @@ private:
     static ModuleSettingsMenu* msm;
     static ModuleStatsMenu* mstm;
     static SystemConfigMenu* scm;
-    static fGUIElementMenu* icm;
+    static ElementMenu* icm;
     static HygrometerModulesMenu* hmm;
     static ValveModulesMenu* vmm;
     static ValveModuleConfigMenu* vmcm;
@@ -2125,7 +2125,7 @@ private:
 
 
 
-class ServerGUI : public fGUIElementMenu {
+class ServerGUI : public ElementMenu {
     void InitializeElements() {
         AddElement(new TextElement("AtaTohum", width / 2, 20, 4, 1, TFT_GOLD));
         AddElement(new TextElement("MGMS Greenhouse", width / 2, 32, 0, 1, TFT_GOLD));
@@ -2140,7 +2140,7 @@ class ServerGUI : public fGUIElementMenu {
     }
 
     void Draw() override {
-        fGUIElementMenu::Draw();
+        ElementMenu::Draw();
 
         float ms = millis();
         float seconds = ms / 1000;

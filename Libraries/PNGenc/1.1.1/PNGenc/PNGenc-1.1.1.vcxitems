@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding ="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" >
+  <PropertyGroup Label="Globals" >
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{a970cb6a-0780-4678-8ba0-cb3160bf66df}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\adler32.c" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\crc32.c" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\deflate.c" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\PNGenc.cpp" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\trees.c" />
+<ClCompile Include="$(MSBuildThisFileDirectory)src\zutil.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\crc32.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\deflate.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\gzguts.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\PNGenc.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\trees.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\zconf.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\zlib.h" />
+<ClInclude Include="$(MSBuildThisFileDirectory)src\zutil.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(MSBuildThisFileDirectory)library.properties" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" />
+<None Include="$(MSBuildThisFileDirectory)README.md" />
+<None Include="$(MSBuildThisFileDirectory)src\png.inl" />
+  </ItemGroup>
+</Project>

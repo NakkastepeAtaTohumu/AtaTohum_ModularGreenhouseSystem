@@ -16,16 +16,16 @@
   <ItemGroup>
     <Text Include="$(MSBuildThisFileDirectory)readme.txt" />
     <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-    <Text Include="$(MSBuildThisFileDirectory)src\fGUILib.h" />
+    <Text Include="$(MSBuildThisFileDirectory)src\fGUI.h" />
   </ItemGroup>
   <ItemGroup>
     <!-- <ClInclude Include="$(MSBuildThisFileDirectory)fGUI.h" /> -->
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGUIConfigMenu.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGUIElementMenu.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\ConfigMenu.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\ElementMenu.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUIElementMenu.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUILib.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUIConfigMenu.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\ElementMenu.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUI.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\ConfigMenu.cpp" />
   </ItemGroup>
 </Project>

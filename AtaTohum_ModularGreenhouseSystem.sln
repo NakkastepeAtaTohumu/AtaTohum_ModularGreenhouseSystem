@@ -1,7 +1,6 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31424.327
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fNETLib", "fMCLib\fMCLib.vcxitems", "{4365D99F-D2A9-4030-83CF-FF367240CE31}"
 EndProject
@@ -73,7 +72,83 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Update-2.0.0", "Libraries\U
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PNGenc-1.1.1", "Libraries\PNGenc\1.1.1\PNGenc\PNGenc-1.1.1.vcxitems", "{A970CB6A-0780-4678-8BA0-CB3160BF66DF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fGMSControlPanel", "fGMSControlPanel\fGMSControlPanel.vcxproj", "{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCF8574-0.3.8", "Libraries\PCF8574\0.3.8\PCF8574\PCF8574-0.3.8.vcxitems", "{6F280A9D-6060-486F-AAB4-9E32858021F7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SimpleFTPServer-2.1.4", "Libraries\SimpleFTPServer\2.1.4\SimpleFTPServer\SimpleFTPServer-2.1.4.vcxitems", "{4C7E7A82-B31B-43CE-9D1B-1CBDAF8D2B13}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FFat-2.0.0", "Libraries\FFat\2.0.0\FFat\FFat-2.0.0.vcxitems", "{64C24698-2CDB-4D35-BEE8-43540C2AC399}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AsyncElegantOTA-2.2.7", "Libraries\AsyncElegantOTA\2.2.7\AsyncElegantOTA\AsyncElegantOTA-2.2.7.vcxitems", "{6697BFAC-7286-4981-BF9B-CD1CBB494515}"
+EndProject
 Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Release|ARM = Release|ARM
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|ARM.ActiveCfg = Debug|ARM
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|ARM.Build.0 = Debug|ARM
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|ARM.Deploy.0 = Debug|ARM
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|ARM.ActiveCfg = Release|ARM
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|ARM.Build.0 = Release|ARM
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|ARM.Deploy.0 = Release|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Debug|ARM.ActiveCfg = Debug|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Debug|ARM.Build.0 = Debug|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Debug|ARM.Deploy.0 = Debug|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Release|ARM.ActiveCfg = Release|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Release|ARM.Build.0 = Release|ARM
+		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Release|ARM.Deploy.0 = Release|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|ARM.ActiveCfg = Debug|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|ARM.Build.0 = Debug|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|ARM.Deploy.0 = Debug|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|ARM.ActiveCfg = Release|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|ARM.Build.0 = Release|ARM
+		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|ARM.Deploy.0 = Release|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|ARM.ActiveCfg = Debug|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|ARM.Build.0 = Debug|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|ARM.Deploy.0 = Debug|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|ARM.ActiveCfg = Release|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|ARM.Build.0 = Release|ARM
+		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|ARM.Deploy.0 = Release|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Debug|ARM.ActiveCfg = Debug|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Debug|ARM.Build.0 = Debug|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Debug|ARM.Deploy.0 = Debug|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Release|ARM.ActiveCfg = Release|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Release|ARM.Build.0 = Release|ARM
+		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Release|ARM.Deploy.0 = Release|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Debug|ARM.ActiveCfg = Debug|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Debug|ARM.Build.0 = Debug|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Debug|ARM.Deploy.0 = Debug|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Release|ARM.ActiveCfg = Release|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Release|ARM.Build.0 = Release|ARM
+		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Release|ARM.Deploy.0 = Release|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Debug|ARM.ActiveCfg = Debug|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Debug|ARM.Build.0 = Debug|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Debug|ARM.Deploy.0 = Debug|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Release|ARM.ActiveCfg = Release|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Release|ARM.Build.0 = Release|ARM
+		{2D9161ED-544E-4494-A153-C59C2737A767}.Release|ARM.Deploy.0 = Release|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Debug|ARM.ActiveCfg = Debug|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Debug|ARM.Build.0 = Debug|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Debug|ARM.Deploy.0 = Debug|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Release|ARM.ActiveCfg = Release|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Release|ARM.Build.0 = Release|ARM
+		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Release|ARM.Deploy.0 = Release|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Debug|ARM.ActiveCfg = Debug|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Debug|ARM.Build.0 = Debug|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Debug|ARM.Deploy.0 = Debug|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Release|ARM.ActiveCfg = Release|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Release|ARM.Build.0 = Release|ARM
+		{BCD2A9F1-B188-4EBB-B1B6-1A9DD3506081}.Release|ARM.Deploy.0 = Release|ARM
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7D6C9155-6AC1-4710-A059-1E665BA1B12A}
+	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Libraries\ArduinoOTA\2.0.0\ArduinoOTA\ArduinoOTA-2.0.0.vcxitems*{0369af19-c82b-4fc0-abf2-457cde104a02}*SharedItemsImports = 9
 		Libraries\ESP32_I2C_Slave\0.3.0\ESP32_I2C_Slave\ESP32_I2C_Slave-0.3.0.vcxitems*{07ece8a4-c0bf-4c22-9d66-df2236a71167}*SharedItemsImports = 9
@@ -94,6 +169,7 @@ Global
 		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
+		Libraries\TaskScheduler\3.7.0\TaskScheduler\TaskScheduler-3.7.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{39778ce5-6bfe-498b-841f-8432a1d75d29}*SharedItemsImports = 4
@@ -107,15 +183,23 @@ Global
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{39778ce5-6bfe-498b-841f-8432a1d75d29}*SharedItemsImports = 4
 		fGUI\fGUI.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\AsyncTCP-master\1.1.1\AsyncTCP-master\AsyncTCP-master-1.1.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\ESP32Encoder\0.9.1\ESP32Encoder\ESP32Encoder-0.9.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\ESPAsyncWebServer-master\1.2.3\ESPAsyncWebServer-master\ESPAsyncWebServer-master-1.2.3.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\FFat\2.0.0\FFat\FFat-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\NTPClient\3.2.1\NTPClient\NTPClient-3.2.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\Painless_Mesh\1.5.0\Painless_Mesh\Painless_Mesh-1.5.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\PNGenc\1.1.1\PNGenc\PNGenc-1.1.1.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
+		Libraries\SimpleFTPServer\2.1.4\SimpleFTPServer\SimpleFTPServer-2.1.4.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\SPIFFS\2.0.0\SPIFFS\SPIFFS-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\TaskScheduler\3.7.0\TaskScheduler\TaskScheduler-3.7.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\TFT_eSPI\2.4.72\TFT_eSPI\TFT_eSPI-2.4.72.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		Libraries\Update\2.0.0\Update\Update-2.0.0.vcxitems*{3bbc96df-bdba-451b-be3b-5e2bc7323f6b}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{4365d99f-d2a9-4030-83cf-ff367240ce31}*SharedItemsImports = 9
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{46b3ca32-9289-4bdc-acec-d88f2d747ab1}*SharedItemsImports = 9
+		Libraries\SimpleFTPServer\2.1.4\SimpleFTPServer\SimpleFTPServer-2.1.4.vcxitems*{4c7e7a82-b31b-43ce-9d1b-1cbdaf8d2b13}*SharedItemsImports = 9
 		Libraries\AsyncTCP-master\1.1.1\AsyncTCP-master\AsyncTCP-master-1.1.1.vcxitems*{4cd16ea8-4556-453a-924e-1d4d0efe8aa9}*SharedItemsImports = 9
 		Libraries\UUID\0.1.3\UUID\UUID-0.1.3.vcxitems*{4e0d64a9-662f-4d3c-92a3-3629a2a9849e}*SharedItemsImports = 9
 		fMCLib\fMCLib.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
@@ -124,6 +208,7 @@ Global
 		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
 		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
+		Libraries\TaskScheduler\3.7.0\TaskScheduler\TaskScheduler-3.7.0.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{4e22907e-0341-4f4d-bb8f-e6baa1ed6620}*SharedItemsImports = 4
 		Libraries\ESP32Encoder\0.9.1\ESP32Encoder\ESP32Encoder-0.9.1.vcxitems*{4ea753b4-2797-44b2-a9e0-6f0dd2f4a311}*SharedItemsImports = 9
 		fMCLib\fMCLib.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
@@ -137,8 +222,11 @@ Global
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{5e71d505-8f00-4c26-ae82-33ba12859d11}*SharedItemsImports = 4
 		Libraries\Adafruit_ADS1X15\2.4.0\Adafruit_ADS1X15\Adafruit_ADS1X15-2.4.0.vcxitems*{635dc999-4a50-420d-b471-50fe7588f2de}*SharedItemsImports = 9
+		Libraries\FFat\2.0.0\FFat\FFat-2.0.0.vcxitems*{64c24698-2cdb-4d35-bee8-43540c2ac399}*SharedItemsImports = 9
+		Libraries\AsyncElegantOTA\2.2.7\AsyncElegantOTA\AsyncElegantOTA-2.2.7.vcxitems*{6697bfac-7286-4981-bf9b-cd1cbb494515}*SharedItemsImports = 9
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{680c508a-349d-48e7-aa16-fe98d493c1e1}*SharedItemsImports = 9
 		Libraries\Encoder\1.4.2\Encoder\Encoder-1.4.2.vcxitems*{6b218c45-1454-4def-838c-778c48241479}*SharedItemsImports = 9
+		Libraries\PCF8574\0.3.8\PCF8574\PCF8574-0.3.8.vcxitems*{6f280a9d-6060-486f-aab4-9e32858021f7}*SharedItemsImports = 9
 		fGUI\fGUI.vcxitems*{75e73181-f062-40d5-b487-7fc0aa6043f5}*SharedItemsImports = 9
 		Libraries\Painless_Mesh\1.5.0\Painless_Mesh\Painless_Mesh-1.5.0.vcxitems*{8093cf54-c557-4a8b-98f5-99f3a8cdd5f9}*SharedItemsImports = 9
 		Libraries\Dictionary\3.3.0\Dictionary\Dictionary-3.3.0.vcxitems*{82c9cb43-a1d1-414a-9820-8d4b3059af4f}*SharedItemsImports = 9
@@ -151,6 +239,18 @@ Global
 		Libraries\Adafruit_SHT31_Library\2.1.0\Adafruit_SHT31_Library\Adafruit_SHT31_Library-2.1.0.vcxitems*{b64c42d1-5a8a-423d-a58a-23dc9b598b8c}*SharedItemsImports = 9
 		Libraries\Update\2.0.0\Update\Update-2.0.0.vcxitems*{b7c32a48-144f-4a29-baef-20403b76fc84}*SharedItemsImports = 9
 		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{b979fcc6-eadb-45f2-94e8-2f7afb2dfcd8}*SharedItemsImports = 9
+		fMCLib\fMCLib.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\AsyncTCP-master\1.1.1\AsyncTCP-master\AsyncTCP-master-1.1.1.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\Painless_Mesh\1.5.0\Painless_Mesh\Painless_Mesh-1.5.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\PCF8574\0.3.8\PCF8574\PCF8574-0.3.8.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\TaskScheduler\3.7.0\TaskScheduler\TaskScheduler-3.7.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\Update\2.0.0\Update\Update-2.0.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
+		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{bcd2a9f1-b188-4ebb-b1b6-1a9dd3506081}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
 		Libraries\ArduinoOTA\2.0.0\ArduinoOTA\ArduinoOTA-2.0.0.vcxitems*{c5f80730-f44f-4478-bdae-6634efc2ca88}*SharedItemsImports = 4
@@ -170,49 +270,5 @@ Global
 		Libraries\SPIFFS\2.0.0\SPIFFS\SPIFFS-2.0.0.vcxitems*{dd218f94-4c4e-41fe-95d0-4492fe26e90d}*SharedItemsImports = 9
 		Libraries\Vector\1.2.1\Vector\Vector-1.2.1.vcxitems*{e1e33123-114a-4414-81db-ca7844556adb}*SharedItemsImports = 9
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{e3571d26-dd49-4e07-b263-7a936b403ae8}*SharedItemsImports = 4
-	EndGlobalSection
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x86 = Debug|x86
-		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.ActiveCfg = Debug|Win32
-		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.Build.0 = Debug|Win32
-		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.ActiveCfg = Release|Win32
-		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.Build.0 = Release|Win32
-		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Debug|x86.ActiveCfg = Debug|Win32
-		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Debug|x86.Build.0 = Debug|Win32
-		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Release|x86.ActiveCfg = Release|Win32
-		{3BBC96DF-BDBA-451B-BE3B-5E2BC7323F6B}.Release|x86.Build.0 = Release|Win32
-		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|x86.ActiveCfg = Debug|Win32
-		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Debug|x86.Build.0 = Debug|Win32
-		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|x86.ActiveCfg = Release|Win32
-		{E3571D26-DD49-4E07-B263-7A936B403AE8}.Release|x86.Build.0 = Release|Win32
-		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|x86.ActiveCfg = Debug|Win32
-		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Debug|x86.Build.0 = Debug|Win32
-		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|x86.ActiveCfg = Release|Win32
-		{5E71D505-8F00-4C26-AE82-33BA12859D11}.Release|x86.Build.0 = Release|Win32
-		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Debug|x86.ActiveCfg = Debug|Win32
-		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Debug|x86.Build.0 = Debug|Win32
-		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Release|x86.ActiveCfg = Release|Win32
-		{39778CE5-6BFE-498B-841F-8432A1D75D29}.Release|x86.Build.0 = Release|Win32
-		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Debug|x86.ActiveCfg = Debug|Win32
-		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Debug|x86.Build.0 = Debug|Win32
-		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Release|x86.ActiveCfg = Release|Win32
-		{4E22907E-0341-4F4D-BB8F-E6BAA1ED6620}.Release|x86.Build.0 = Release|Win32
-		{2D9161ED-544E-4494-A153-C59C2737A767}.Debug|x86.ActiveCfg = Debug|Win32
-		{2D9161ED-544E-4494-A153-C59C2737A767}.Debug|x86.Build.0 = Debug|Win32
-		{2D9161ED-544E-4494-A153-C59C2737A767}.Release|x86.ActiveCfg = Release|Win32
-		{2D9161ED-544E-4494-A153-C59C2737A767}.Release|x86.Build.0 = Release|Win32
-		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Debug|x86.ActiveCfg = Debug|Win32
-		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Debug|x86.Build.0 = Debug|Win32
-		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Release|x86.ActiveCfg = Release|Win32
-		{1CCE90FE-B9C8-4087-AA0D-872B5C203FC2}.Release|x86.Build.0 = Release|Win32
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {7D6C9155-6AC1-4710-A059-1E665BA1B12A}
 	EndGlobalSection
 EndGlobal

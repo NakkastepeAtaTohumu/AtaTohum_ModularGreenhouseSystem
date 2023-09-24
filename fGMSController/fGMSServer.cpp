@@ -2,6 +2,7 @@
 
 AsyncWebServer* fGMSServer::server;
 AsyncEventSource* fGMSServer::events;
+FtpServer* fGMSServer::ftpsrv;
 int fGMSServer::bytes_sent = 0;
 long fGMSServer::restartMS = 0;
 

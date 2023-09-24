@@ -428,7 +428,7 @@ public:
     }
 
     void HandleMessage(void* param) {
-        DynamicJsonDocument d = *(DynamicJsonDocument*)param;
+        DynamicJsonDocument& d = *(DynamicJsonDocument*)param; //TODO
 
         if (d["tag"] != "fNETTunnel")
             return;
@@ -535,7 +535,7 @@ protected:
 
     void GenerateSessionID() {
         uint32_t random = esp_random();
-        sessionID = "FNT-" + String((unsigned long)random, 16U);
+        sessionID = "FNT-" + String((unsigned long)random, (unsigned char)16U);
     }
 
     DynamicJsonDocument* HandleConnect(DynamicJsonDocument* dat) {

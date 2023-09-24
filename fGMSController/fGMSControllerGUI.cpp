@@ -6,7 +6,7 @@ fGMSControllerMenu::ModuleMenuManageOverlay* fGMSControllerMenu::mmmo;
 fGMSControllerMenu::ModuleSettingsMenu* fGMSControllerMenu::msm;
 fGMSControllerMenu::ModuleStatsMenu* fGMSControllerMenu::mstm;
 fGMSControllerMenu::SystemConfigMenu* fGMSControllerMenu::scm;
-fGUIElementMenu* fGMSControllerMenu::icm;
+ElementMenu* fGMSControllerMenu::icm;
 fGMSControllerMenu::HygrometerModulesMenu* fGMSControllerMenu::hmm;
 fGMSControllerMenu::ValveModulesMenu* fGMSControllerMenu::vmm;
 fGMSControllerMenu::ValveModuleConfigMenu* fGMSControllerMenu::vmcm;

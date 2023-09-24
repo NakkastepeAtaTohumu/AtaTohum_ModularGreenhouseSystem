@@ -52,7 +52,7 @@ void setup() {
     c = fNET_Mesh::Init(&mesh);
 
     Serial.println("Waiting for mesh to form.");
-    delay(10000);
+    fNETModule::Idle_blink(10000);
 
     fNETModule::Init(c);
     fNETModule::data["ModuleType"] = "HygroCtl";

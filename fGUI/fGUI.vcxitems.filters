@@ -11,28 +11,28 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUILib.cpp">
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUIConfigMenu.cpp">
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\ConfigMenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)src\fGUIElementMenu.cpp">
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\ElementMenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGUIConfigMenu.h">
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\ConfigMenu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)src\fGUIElementMenu.h">
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\ElementMenu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="$(MSBuildThisFileDirectory)readme.txt" />
     <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-    <Text Include="$(MSBuildThisFileDirectory)src\fGUILib.h">
+    <Text Include="$(MSBuildThisFileDirectory)src\fGUI.h">
       <Filter>Header Files</Filter>
     </Text>
   </ItemGroup>

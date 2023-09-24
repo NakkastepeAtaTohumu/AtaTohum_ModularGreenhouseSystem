@@ -7,8 +7,13 @@
 #include "ArduinoJson.h"
 #include "mbedtls/base64.h"
 
+#include <FS.h>
+#include <LittleFS.h>
+#include <SimpleFTPServer.h>
+#include <Update.h>
+
 #include "fGMS.h"
-#include "fGUILib.h"
+#include "fGUI.h"
 #include <PNGenc.h>
 
 #define fGMSServerPort 80
@@ -206,7 +211,7 @@ public:
             Serial.println("[fGMS Server] Sending image.");
 
             if(fGUI::SpriteInitialized)
-                r->send_P(500, "test/html", "Sprite not allocated");
+                r->send_P(500, "text/html", "Sprite not allocated");
 
             uint8_t* image = (uint8_t*)malloc(8192);
             int length = GetPNGImage(image);
@@ -368,6 +373,56 @@ public:
             r->send(200, "application/text", "ok");
             });
 
+        server->on(
+            "/gmsConfig",
+            HTTP_POST,
+            [](AsyncWebServerRequest* request) {},
+            NULL,
+            [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
+                if (index != 0)
+                {
+                    Serial.println("Received chunked upload!");
+                    r->send(200, "text/html", "failed");
+                    return;
+                }
+
+                String data_string((const char*)data, len);
+
+                File data_file = LittleFS.open("/fGMS_Data.json", "w", true);
+                data_file.print(data_string.c_str());
+                data_file.close();
+
+                ESP.restart();
+            });
+
+        /*server->on("/update", HTTP_POST, []() {
+            server->send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+            ESP.restart();
+            }, []() {
+                HTTPUpload& upload = server.upload();
+                if (upload.status == UPLOAD_FILE_START) {
+                    Serial.printf("Update: %s\n", upload.filename.c_str());
+                    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+                        Update.printError(Serial);
+                    }
+                }
+                else if (upload.status == UPLOAD_FILE_WRITE) {
+                    /* flashing firmware to ESP*
+                    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                        Update.printError(Serial);
+                    }
+                }
+                else if (upload.status == UPLOAD_FILE_END) {
+                    if (Update.end(true)) { //true to set the size to the current progress
+                        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+                    }
+                    else {
+                        Update.printError(Serial);
+                    }
+                }
+            });*/
+
+
         server->onNotFound([](AsyncWebServerRequest* r) {
             r->send(404, "text/html", "Not found");
             });
@@ -376,11 +431,17 @@ public:
 
         server->begin();
 
+        ftpsrv = new FtpServer();
+
+        ftpsrv->begin("feoranis", "16777216");
+
         xTaskCreate(task, "fGMSServerTask", 8192, nullptr, 0, nullptr);
+        xTaskCreate(FTPTask, "fGMFTPTask", 4096, nullptr, 0, nullptr);
     }
 private:
     static AsyncWebServer* server;
     static AsyncEventSource* events;
+    static FtpServer* ftpsrv;
 
     static int bytes_sent;
     static long restartMS;
@@ -388,12 +449,16 @@ private:
     static DynamicJsonDocument& GetConfigJSON() {
         DynamicJsonDocument& d = *new DynamicJsonDocument(8192);
 
+        Serial.println("hygro array");
         JsonArray hygrometersArray = d.createNestedArray("hygrometers");
 
         for (int i = 0; i < fGMS::HygrometerCount; i++) {
             JsonObject o = hygrometersArray.createNestedObject();
 
-            o["m"] = fGMS::Hygrometers[i]->Module->module_mac;
+            if (o["m"] = fGMS::Hygrometers[i]->Module != nullptr)
+                o["m"] = fGMS::Hygrometers[i]->Module->module_mac;
+            else
+                o["m"] = "";
             o["c"] = fGMS::Hygrometers[i]->Channel;
 
             o["x"] = fGMS::Hygrometers[i]->x;
@@ -403,6 +468,7 @@ private:
             o["u"] = fGMS::Hygrometers[i]->map_max;
         }
 
+        Serial.println("group array");
         JsonArray groupsArray = d.createNestedArray("groups");
 
         for (int i = 0; i < fGMS::HygrometerGroupCount; i++) {
@@ -415,6 +481,7 @@ private:
             o["color"] = "#00ff00";
         }
 
+        Serial.println("hmodule array");
         JsonArray devicesArray = d.createNestedArray("devices");
 
         for (int i = 0; i < fGMS::HygrometerModuleCount; i++) {
@@ -425,6 +492,7 @@ private:
             o["t"] = "hygro";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
             JsonArray values_array = data.createNestedArray("values");
@@ -435,6 +503,7 @@ private:
             data["channels"] = mdl->Channels;
         }
 
+        Serial.println("vmodule array");
         for (int i = 0; i < fGMS::ValveModuleCount; i++) {
             fGMS::ValveModule* mdl = fGMS::ValveModules[i];
             JsonObject o = devicesArray.createNestedObject();
@@ -443,12 +512,14 @@ private:
             o["t"] = "valve";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
 
             data["state"] = mdl->State;
         }
 
+        Serial.println("smodule array");
         for (int i = 0; i < fGMS::SensorModuleCount; i++) {
             fGMS::SensorModule* mdl = fGMS::SensorModules[i];
             JsonObject o = devicesArray.createNestedObject();
@@ -457,6 +528,7 @@ private:
             o["t"] = "sensor";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
 
@@ -465,6 +537,7 @@ private:
             data["humidity"] = mdl->humidity;
         }
 
+        Serial.println("data");
         JsonObject size = d.createNestedObject("hygrometerGridSize");
 
         size["x"] = fGMS::greenhouse.x_size;
@@ -498,6 +571,7 @@ private:
             o["t"] = "hygro";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
             JsonArray values_array = data.createNestedArray("values");
@@ -516,6 +590,7 @@ private:
             o["t"] = "valve";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
 
@@ -530,6 +605,7 @@ private:
             o["t"] = "sensor";
             o["m"] = mdl->module_mac;
             o["o"] = mdl->ok;
+            o["i"] = i;
 
             JsonObject data = o.createNestedObject("d");
 
@@ -629,6 +705,13 @@ private:
 
             if(millis() - restartMS > 0 && restartMS != 0)
                 ESP.restart();
+        }
+    }
+
+    static void FTPTask(void* param) {
+        while(true) {
+            ftpsrv->handleFTP();
+            delay(5);
         }
     }
 
