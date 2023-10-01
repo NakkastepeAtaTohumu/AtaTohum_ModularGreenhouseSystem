@@ -11,6 +11,7 @@
 #include <LittleFS.h>
 #include <SimpleFTPServer.h>
 #include <Update.h>
+#include <RemoteUDPLogging.h>
 
 #include "fGMS.h"
 #include "fGUI.h"
@@ -31,25 +32,21 @@ public:
         DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
         DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Content-Type");
 
-        server->on("/enableGUI", [](AsyncWebServerRequest* r) {
+        server->on("/setGUI", [](AsyncWebServerRequest* r) {
             Serial.println("[fGMS Server] Enable GUI");
+            if (!r->hasParam("enabled"))
+            {
+                r->send(400);
+                return;
+            }
 
-            fGMS::serverEnabled = false;
+            fGMS::serverEnabled = atoi(r->getParam("enabled")->value().c_str());
             fGMS::Save();
 
             r->send(200, "text/html", "ok");
             });
 
-        server->on("/disableGUI", [](AsyncWebServerRequest* r) {
-            Serial.println("[fGMS Server] Disable GUI");
-
-            fGMS::serverEnabled = true;
-            fGMS::Save();
-
-            r->send(200, "text/html", "ok");
-            });
-
-        server->on("/toggleValve", [](AsyncWebServerRequest* r) {
+        server->on("/setValve", [](AsyncWebServerRequest* r) {
             if (!r->hasParam("module") || !r->hasParam("valve"))
             {
                 r->send(400, "text/html", "Invalid request");
@@ -112,7 +109,7 @@ public:
             r->send(200, "text/html", "ok");
             });
 
-        server->on("/getValues", [](AsyncWebServerRequest* r) {
+        server->on("/values", HTTP_GET, [](AsyncWebServerRequest* r) {
             Serial.println("[fGMS Server] Get data json");
 
             String data_str;
@@ -124,7 +121,7 @@ public:
             r->send(200, "application/json", data_str);
             });
 
-        server->on("/getGMSConfig", [](AsyncWebServerRequest* r) {
+        server->on("/getGMSConfig", HTTP_GET, [](AsyncWebServerRequest* r) {
             Serial.println("[fGMS Server] Get config json");
 
             String data_str;
@@ -191,7 +188,7 @@ public:
             });
 
         server->on("/restart", [](AsyncWebServerRequest* r) {
-            Serial.println("[fGMS Server] Restarting.");
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Restarting.");
 
             restartMS = millis() + 2000;
 
@@ -200,30 +197,32 @@ public:
 
         events->onConnect([](AsyncEventSourceClient* client) {
             if (client->lastId())
-                Serial.printf("[fGMS Server Events] Client reconnected. Last message ID that it got is: %u\n", client->lastId());
+                RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Client reconnected. Last message ID that it got is: %u", client->lastId());
             else
-                Serial.println("[fGMS Server Events] Client connected.");
+                RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Client connected.");
 
             RefreshConfig();
             });
 
         server->on("/getScreen", [](AsyncWebServerRequest* r) {
-            Serial.println("[fGMS Server] Sending image.");
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Sending image.");
 
-            if(fGUI::SpriteInitialized)
+            if (fGUI::SpriteInitialized) {
                 r->send_P(500, "text/html", "Sprite not allocated");
+                return;
+            }
 
             uint8_t* image = (uint8_t*)malloc(8192);
             int length = GetPNGImage(image);
 
-            Serial.println("[fGMS Server] Got image, length: " + String(length));
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Got image, length: %d", length);
             r->send_P(200, "image/png", image, length);
 
             free(image);
             });
 
         server->on("/getScreenBinary", [](AsyncWebServerRequest* r) {
-            ESP_LOGV("fGMS Server", "Sending screen image in binary.");
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Sending screen image in binary.");
 
             //uint8_t* image = (uint8_t*)malloc(128 * 40);
             //GetBinaryImage(image);
@@ -289,10 +288,11 @@ public:
                     fGUI::OnBackButtonClicked();
             }
 
-            r->send(200, "application/text", "ok");
+            r->send(200, "text/html", "ok");
             });
 
         server->on("/setGreenhouseSize", [](AsyncWebServerRequest* r) {
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Setting greenhouse size");
             if (!r->hasParam("x") || !r->hasParam("y"))
             {
                 r->send(400, "text/html", "Invalid request");
@@ -302,79 +302,204 @@ public:
             fGMS::greenhouse.x_size = atof(r->getParam("x")->value().c_str());
             fGMS::greenhouse.y_size = atof(r->getParam("y")->value().c_str());
 
-            r->send(200, "application/text", "ok");
+            r->send(200, "text/html", "ok");
             });
 
-        server->on("/configHygrometer", [](AsyncWebServerRequest* r) {
-            if (!r->hasParam("module") || !r->hasParam("channel") || !r->hasParam("x") || !r->hasParam("y") || !r->hasParam("min") || !r->hasParam("max") || !r->hasParam("hygrometer"))
+        server->on(
+            "/hygrometer",
+            HTTP_POST,
+            [](AsyncWebServerRequest* request) {},
+            NULL,
+            [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
+                if (index != 0)
+                {
+                    RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Received chunked upload!");
+                    r->send(200, "text/html", "failed");
+                    return;
+                }
+
+                String data_string((const char*)data, len);
+                DynamicJsonDocument hygrometer_doc(256);
+                deserializeJson(hygrometer_doc, data_string);
+
+                int hygrometer = r->hasParam("id") ? atoi(r->getParam("id")->value().c_str()) : -1;
+
+                fGMS::Hygrometer* h;
+                if (hygrometer == -1)
+                    h = fGMS::CreateHygrometer();
+                else
+                    h = fGMS::GetHygrometer(hygrometer);
+
+                if (h == nullptr) {
+                    r->send(400, "text/html", "Hygrometer not found"); 
+                    return;
+                }
+
+                fGMS::HygrometerModule* m = fGMS::GetHygrometerModuleByMAC(hygrometer_doc["module"].as<String>());
+
+                if (m == nullptr) {
+                    r->send(400, "text/html", "Module not found");
+                    return;
+                }
+
+                h->Load(hygrometer_doc.as<JsonObject>());
+
+                RefreshConfig();
+                r->send(200, "text/html", "ok");
+            });
+
+        server->on("/hygrometer", HTTP_DELETE, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id"))
             {
                 r->send(400, "text/html", "Invalid request");
                 return;
             }
 
-            String moduleID = r->getParam("module")->value();
-            int channel = atoi(r->getParam("channel")->value().c_str());
-
-            float x = atof(r->getParam("x")->value().c_str());
-            float y = atof(r->getParam("y")->value().c_str());
-
-            float min = atof(r->getParam("min")->value().c_str());
-            float max = atof(r->getParam("max")->value().c_str());
-
-            int hygrometer = atoi(r->getParam("hygrometer")->value().c_str());
-
-            fGMS::Hygrometer* h;
-
-            if (hygrometer == -1)
-                h = fGMS::CreateHygrometer();
-            else
-                h = fGMS::GetHygrometer(hygrometer);
-
-            if (h == nullptr)
-                r->send(400, "text/html", "Hygrometer not found");
-
-            fGMS::HygrometerModule* m = fGMS::GetHygrometerModuleByMAC(moduleID);
-
-            if (m == nullptr)
-                r->send(400, "text/html", "Module not found");
-
-            h->Module = m;
-            h->Channel = channel;
-
-            h->x = x;
-            h->y = y;
-
-            h->map_min = min;
-            h->map_max = max;
-
-
-            RefreshConfig();
-            r->send(200, "application/text", "ok");
-            });
-
-        server->on("/removeHygrometer", [](AsyncWebServerRequest* r) {
-            if (!r->hasParam("hygrometer"))
-            {
-                r->send(400, "text/html", "Invalid request");
-                return;
-            }
-
-            int hygrometer = atoi(r->getParam("hygrometer")->value().c_str());
+            int hygrometer = atoi(r->getParam("id")->value().c_str());
 
             fGMS::Hygrometer* h;
             h = fGMS::GetHygrometer(hygrometer);
 
-            if (h == nullptr)
+            if (h == nullptr) {
                 r->send(400, "text/html", "Hygrometer not found");
-
+                return;
+            }
+            RemoteLog.log(ESP_LOG_INFO, "fGMS Server", "Removing hygrometer");
             fGMS::RemoveHygrometer(hygrometer);
 
             RefreshConfig();
-            r->send(200, "application/text", "ok");
+            r->send(200, "text/html", "ok");
+            });
+
+        server->on("/hygrometer", HTTP_GET, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int hygrometer = atoi(r->getParam("id")->value().c_str());
+
+            fGMS::Hygrometer* h;
+            h = fGMS::GetHygrometer(hygrometer);
+
+            if (h == nullptr) {
+                r->send(400, "text/html", "Hygrometer not found");
+                return;
+            }
+
+            DynamicJsonDocument d = h->Save();
+            String d_str;
+            serializeJson(d, d_str);
+
+            r->send(200, "application/json", d_str);
             });
 
         server->on(
-            "/gmsConfig",
+            "/group",
+            HTTP_POST,
+            [](AsyncWebServerRequest* request) {},
+            NULL,
+            [](AsyncWebServerRequest* r, uint8_t* data, size_t len, size_t index, size_t total) {
+                if (index != 0)
+                {
+                    Serial.println("Received chunked upload!");
+                    r->send(200, "text/html", "failed");
+                    return;
+                }
+
+                String data_string((const char*)data, len);
+                DynamicJsonDocument doc(256);
+                deserializeJson(doc, data_string);
+
+                int group = r->hasParam("id") ? atoi(r->getParam("id")->value().c_str()) : -1;
+                fGMS::HygrometerGroup* g;
+                if (group == -1)
+                    g = fGMS::CreateHygrometerGroup();
+                else
+                    g = fGMS::GetHygrometerGroup(group);
+
+                if (g == nullptr)
+                    r->send(400, "text/html", "Group not found");
+
+                g->Load(doc.as<JsonObject>());
+
+                RefreshConfig();
+                r->send(200, "text/html", "ok");
+            });
+
+        server->on("/group", HTTP_DELETE, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int group = atoi(r->getParam("id")->value().c_str());
+
+            fGMS::HygrometerGroup* g;
+            g = fGMS::GetHygrometerGroup(group);
+
+            if (g == nullptr) {
+                r->send(400, "text/html", "Group not found");
+                return;
+            }
+
+            fGMS::RemoveHygrometerGroup(group);
+
+            RefreshConfig();
+            r->send(200, "text/html", "ok");
+            });
+
+        server->on("/group", HTTP_GET, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int group = atoi(r->getParam("id")->value().c_str());
+
+            fGMS::HygrometerGroup* g;
+            g = fGMS::GetHygrometerGroup(group);
+
+            if (g == nullptr) {
+                r->send(400, "text/html", "Group not found");
+                return;
+            }
+
+            DynamicJsonDocument d = g->Save();
+            String d_str;
+            serializeJson(d, d_str);
+
+            r->send(200, "application/json", d_str);
+            });
+
+        server->on("/override", HTTP_GET, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id") || !r->hasParam("override") || !r->hasParam("water"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int group = atoi(r->getParam("id")->value().c_str());
+            bool ovrride = atoi(r->getParam("override")->value().c_str());
+            bool water = atoi(r->getParam("water")->value().c_str());
+
+            fGMS::HygrometerGroup* g;
+            g = fGMS::GetHygrometerGroup(group);
+
+            if (g == nullptr) {
+                r->send(400, "text/html", "Group not found");
+                return;
+            }
+
+            g->SetOverride(ovrride, water);
+            r->send(200, "text/html", "ok");
+            });
+
+        server->on(
+            "/gms_config",
             HTTP_POST,
             [](AsyncWebServerRequest* request) {},
             NULL,
@@ -393,6 +518,29 @@ public:
                 data_file.close();
 
                 ESP.restart();
+            });
+
+        server->on("/watering", HTTP_GET, [](AsyncWebServerRequest* r) {
+            if (!r->hasParam("id") || !r->hasParam("override") || !r->hasParam("water"))
+            {
+                r->send(400, "text/html", "Invalid request");
+                return;
+            }
+
+            int group = atoi(r->getParam("id")->value().c_str());
+            bool ovrride = atoi(r->getParam("override")->value().c_str());
+            bool water = atoi(r->getParam("water")->value().c_str());
+
+            fGMS::HygrometerGroup* g;
+            g = fGMS::GetHygrometerGroup(group);
+
+            if (g == nullptr) {
+                r->send(400, "text/html", "Group not found");
+                return;
+            }
+
+            g->SetOverride(ovrride, water);
+            r->send(200, "text/html", "ok");
             });
 
         /*server->on("/update", HTTP_POST, []() {
@@ -473,12 +621,7 @@ private:
 
         for (int i = 0; i < fGMS::HygrometerGroupCount; i++) {
             JsonObject o = groupsArray.createNestedObject();
-            JsonArray idsArray = o.createNestedArray("ids");
-
-            for (int j = 0; j < fGMS::HygrometerGroups[i]->numHygrometers; j++)
-                idsArray.add(fGMS::HygrometerGroups[i]->hygrometers[j]->id);
-
-            o["color"] = "#00ff00";
+            o.set(fGMS::HygrometerGroups[i]->Save().as<JsonObject>());
         }
 
         Serial.println("hmodule array");
@@ -622,7 +765,11 @@ private:
             o["i"] = i;
             float val = fGMS::HygrometerGroups[i]->GetAverage();
             o["a"] = val >= 0 ? val * 100 : -1;
-            o["w"] = fGMS::AutomaticWatering ? fGMS::HygrometerGroups[i]->isWatering : false;
+
+            if (fGMS::HygrometerGroups[i]->isOverride)
+                o["w"] = fGMS::HygrometerGroups[i]->overrideWater;
+            else
+                o["w"] = fGMS::AutomaticWatering ? fGMS::HygrometerGroups[i]->isWatering : false;
         }
 
         d["auto"] = fGMS::AutomaticWatering;
@@ -657,6 +804,9 @@ private:
 
         data2["state"] = 12;*/
 
+        if (d.overflowed())
+            Serial.println("OVERFLOWED!!");
+
         return d;
     }
 
@@ -676,9 +826,10 @@ private:
             o["id"] = i;
             o["mac"] = mdl->MAC_Address;
             o["name"] = mdl->Config["name"];
+            o["type"] = mdl->Config["ModuleType"];
             o["ping"] = mdl->Ping;
             o["online"] = mdl->isOnline;
-            o["config"] = mdl->Config;
+            //o["config"] = mdl->Config;
         }
 
         return d;
@@ -686,7 +837,7 @@ private:
 
     static void task(void* param) {
         while (true) {
-            delay(1000);
+            delay(2500);
 
             String data_str;
             DynamicJsonDocument& data = GetDataJSON();
@@ -698,18 +849,22 @@ private:
             serializeJsonPretty(data_sys, system_str);
             delete& data_sys;
 
-            //Serial.println("[fGMS Server Events] Sending: " + data_str);
+            Serial.println("[fGMS Server Events] Sending: " + String(data_str.length()));
+            Serial.println("[fGMS Server Events] Sending: " + String(system_str.length()));
+
+            events->send("", "test");
+
 
             events->send(data_str.c_str(), "update");
             events->send(system_str.c_str(), "update_system");
 
-            if(millis() - restartMS > 0 && restartMS != 0)
+            if (millis() - restartMS > 0 && restartMS != 0)
                 ESP.restart();
         }
     }
 
     static void FTPTask(void* param) {
-        while(true) {
+        while (true) {
             ftpsrv->handleFTP();
             delay(5);
         }

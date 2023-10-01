@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <RemoteUDPLogging.h>
 
 using namespace fs;
 
@@ -33,6 +34,10 @@ public:
         Hygrometer(JsonObject o) {
             id = HygrometerCount;
 
+            Load(o);
+        }
+
+        void Load(JsonObject o) {
             x = o["x"];
             y = o["y"];
 
@@ -113,23 +118,31 @@ public:
     class HygrometerGroup {
     public:
         HygrometerGroup(JsonObject o) {
-            JsonArray idsArray = o["hygrometers"];
-
-            for (int i : idsArray)
-                hygrometers[numHygrometers++] = GetHygrometer(i);
-
-            color = o["color"].as<int>();
-            mod = GetValveModuleByMAC(o["module"]);
-            channel = o["channel"];
-
-            map_min = o["mapMin"];
-            map_max = o["mapMax"];
+            Load(o);
 
             id = HygrometerGroupCount;
         }
 
         HygrometerGroup() {
             id = HygrometerGroupCount;
+        }
+
+        void Load(JsonObject o) {
+            JsonArray idsArray = o["hygrometers"];
+
+            numHygrometers = 0;
+            for (int i : idsArray)
+                hygrometers[numHygrometers++] = GetHygrometer(i);
+
+            color = o["color"].as<int>();
+            mod = GetValveModuleByMAC(o["module"]);
+            if (mod == nullptr)
+                Serial.println("Can't find valve module!");
+
+            channel = o["channel"];
+
+            map_min = o["mapMin"];
+            map_max = o["mapMax"];
         }
 
         Hygrometer* hygrometers[128];
@@ -535,13 +548,10 @@ public:
     }
 
     static HygrometerGroup* GetHygrometerGroupByHygrometer(Hygrometer* m) {
-        Serial.println("serach group");
         for (int i = 0; i < HygrometerGroupCount; i++) {
-            Serial.println("i: " + String(i));
             HygrometerGroup* gr = HygrometerGroups[i];
             for (int j = 0; j < gr->numHygrometers; j++)
             {
-                Serial.println("j: " + String(j));
                 Hygrometer* meter = gr->hygrometers[j];
 
                 if (meter == m)
@@ -553,7 +563,7 @@ public:
     }
 
     static HygrometerModule* AddHygrometerModule(fNETController::Module* mdl) {
-        Serial.println("[fGMS] Add hygrometer module: " + mdl->MAC_Address);
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Add hygrometer module: %s", mdl->MAC_Address.c_str());
 
         for (int i = 0; i < HygrometerModuleCount; i++)
             if (HygrometerModules[i]->module_mac == mdl->MAC_Address)
@@ -575,7 +585,9 @@ public:
     }
 
     static ValveModule* GetValveModuleByMAC(String m) {
+        Serial.println(m);
         for (int i = 0; i < ValveModuleCount; i++) {
+            Serial.println(ValveModules[i]->module_mac);
             if (ValveModules[i]->module_mac == m)
                 return ValveModules[i];
         }
@@ -584,7 +596,7 @@ public:
     }
 
     static ValveModule* AddValveModule(fNETController::Module* mdl) {
-        Serial.println("[fGMS] Add valve module: " + mdl->MAC_Address);
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Add valve module: %s", mdl->MAC_Address.c_str());
 
         for (int i = 0; i < ValveModuleCount; i++)
             if (ValveModules[i]->module_mac == mdl->MAC_Address)
@@ -597,7 +609,7 @@ public:
     }
 
     static SensorModule* AddSensorModule(fNETController::Module* mdl) {
-        Serial.println("[fGMS] Add sensor module: " + mdl->MAC_Address);
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Add sensor module: %s", mdl->MAC_Address.c_str());
 
         for (int i = 0; i < SensorModuleCount; i++)
             if (SensorModules[i]->module_mac == mdl->MAC_Address)
@@ -615,7 +627,7 @@ public:
     }
 
     static void Init(fNETConnection* c) {
-        Serial.println("[fGMS] Init...");
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Init...");
 
         fNET = c;
 
@@ -628,8 +640,8 @@ public:
     }
 
     static void Save() {
-        Serial.println("[fGMS] Saving...");
-        DynamicJsonDocument data(8191);
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Saving...");
+        DynamicJsonDocument data(16384);
 
         JsonArray hygrometersArray = data.createNestedArray("hygrometers");
 
@@ -676,7 +688,7 @@ public:
         Serial.println("[fGMS] Saved data: " + data_serialized);
 
         if (data.overflowed()) {
-            Serial.println("[fGMS] Failed to save!");
+            RemoteLog.log(ESP_LOG_ERROR, "fGMS", "Failed to save!");
             return;
         }
 
@@ -684,7 +696,7 @@ public:
         data_file.print(data_serialized.c_str());
         data_file.close();
 
-        Serial.println("[fGMS] Saved.");
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Saved.");
     }
 
     static bool serverEnabled;
@@ -886,7 +898,7 @@ private:
     static void LoadValveModule(JsonObject o) {
         ValveModule* m = new ValveModule(o);
 
-        if (!IsValidMACAddress(m->module_mac)) {
+        if (!fNET->IsAddressValid(m->module_mac)) {
             delete m;
             return;
         }
@@ -988,7 +1000,7 @@ private:
 
         AutomaticWatering = data["auto"];
 
-        Serial.println("[fGMS] Loaded");
+        RemoteLog.log(ESP_LOG_INFO, "fGMS", "Loaded");
     }
 
     static void update_watering() {

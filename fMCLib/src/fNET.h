@@ -14,6 +14,7 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include <Update.h>
+#include <RemoteUDPLogging.h>
 
 #include "fNETStringFunctions.h"
 #include "fEvents.h"
@@ -124,10 +125,10 @@ public:
         q["recipient"] = macToQuery;
         q["query"] = query;
 
-        ESP_LOGV("fNET", "Query %d: Querying %s: %s", sentQueryID, q["recipient"].as<String>().c_str(), q["query"].as<String>().c_str());
+        RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Query %d: Querying %s: %s", sentQueryID, q["recipient"].as<String>().c_str(), q["query"].as<String>().c_str());
 
         if (!Send(q)) {
-            ESP_LOGV("fNET", "Query %s: Send failed.", String(sentQueryID));
+            RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Query %s: Send failed.", String(sentQueryID));
             return false;
         }
 
@@ -139,7 +140,7 @@ public:
             for (int i = 0; i < ReceivedJSONBuffer.size(); i++) {
                 DynamicJsonDocument& r = *ReceivedJSONBuffer[i];
                 if (r["tag"] == "queryResult" && r["queryID"].as<int>() == sentQueryID && r["recipient"].as<String>() == mac) {
-                    ESP_LOGV("fNET", "Query %s: Received query return.", String(sentQueryID).c_str());
+                    RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Query %s: Received query return.", String(sentQueryID).c_str());
 
                     if (result != nullptr)
                         result->set(r["queryResult"]);
@@ -156,8 +157,8 @@ public:
         String d_str;
 
         serializeJson(q, d_str);
-        ESP_LOGE("fNET", "Query %d: Query failed.", sentQueryID);
-        ESP_LOGE("fNET", "Query %d: Query was: %s", sentQueryID, d_str.c_str());
+        RemoteLog.log(ESP_LOG_ERROR, "fNET", "Query %d: Query failed.", sentQueryID);
+        RemoteLog.log(ESP_LOG_ERROR, "fNET", "Query %d: Query was: %s", sentQueryID, d_str.c_str());
 
         if (dt == nullptr)
             delete data;
@@ -329,7 +330,7 @@ public:
         if (Initialized)
             return;
 
-        ESP_LOGD("fNET", "Tunnel %s: Initializing", portName.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s: Initializing", portName.c_str());
 
         if (!TunnelManager::Initialized)
             TunnelManager::Init();
@@ -343,25 +344,25 @@ public:
     }
 
     void AcceptIncoming() {
-        ESP_LOGD("fNET", "Tunnel %s: Accepting remote requests.", portName.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s: Accepting remote requests.", portName.c_str());
 
         Accept = true;
     }
 
     void BlockIncoming() {
-        ESP_LOGD("fNET", "Tunnel %s: Blocking remote requests.", portName.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s: Blocking remote requests.", portName.c_str());
 
         Accept = false;
     }
 
     bool Send(DynamicJsonDocument data) {
         if (!Initialized) {
-            ESP_LOGE("fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
             return false;
         }
 
         if (!IsConnected) {
-            ESP_LOGE("fNET", "Tunnel %s : Tunnel not connected!", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Tunnel not connected!", portName.c_str());
             return false;
         }
         ESP_LOGV("fNET", "Tunnel %s : Sending", portName.c_str());
@@ -370,7 +371,7 @@ public:
         d["data"] = data;
 
         if (d.overflowed())
-            ESP_LOGE("fNET", "Tunnel %s : Data alloc failed!", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Data alloc failed!", portName.c_str());
 
         d.shrinkToFit();
 
@@ -379,7 +380,7 @@ public:
         delete& d;
 
         if(!ok)
-            ESP_LOGE("fNET", "Tunnel %s : Send failed!", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Send failed!", portName.c_str());
 
         return ok;
     }
@@ -397,7 +398,7 @@ public:
         if (!Initialized)
             return;
 
-        ESP_LOGD("fNET", "Tunnel %s: Closing connection.", portName.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s: Closing connection.", portName.c_str());
 
         DynamicJsonDocument& d = *GetMessageFormat("disconnect_request", 256);
         c->Send(d);
@@ -419,7 +420,7 @@ public:
             if (IsConnected)
                 Close(d["source"]);
 
-            ESP_LOGD("fNET", "Tunnel %s: Closing connection due to invalid query: %s", portName.c_str(), d["type"].as<String>().c_str());
+            RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s: Closing connection due to invalid query: %s", portName.c_str(), d["type"].as<String>().c_str());
 
             return nullptr;
         }
@@ -487,15 +488,15 @@ public:
 
 protected:
     bool TryConnect() {
-        ESP_LOGD("fNET", "Tunnel %s:%s : Connecting to: %s", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connecting to: %s", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
 
         if (!Initialized) {
-            ESP_LOGE("fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());
             return false;
         }
 
         if (!Available) {
-            ESP_LOGE("fNET", "Tunnel %s : Tunnel not available to connect.", portName.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Tunnel not available to connect.", portName.c_str());
             return false;
         }
 
@@ -512,13 +513,13 @@ protected:
 
         if (!ok) {
             return false;
-            ESP_LOGE("fNET", "Tunnel %s:%s : Connection failed (query error).", portName.c_str(), sessionID.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s:%s : Connection failed (query error).", portName.c_str(), sessionID.c_str());
         }
         //Serial.println("[fNet Tunnel " + portName + ":" + sessionID + "] Got query result.");
 
         if (result["status"] != "ok") {
-            ESP_LOGE("fNET", "Tunnel %s:%s : Connection failed (invalid state).", portName.c_str(), sessionID.c_str());
-            ESP_LOGE("fNET", "Tunnel %s:%s : State: %s", portName, sessionID, result["status"].as<String>());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s:%s : Connection failed (invalid state).", portName.c_str(), sessionID.c_str());
+            RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s:%s : State: %s", portName, sessionID, result["status"].as<String>());
             return false;
         }
 
@@ -526,7 +527,7 @@ protected:
         Available = false;
 
 
-        ESP_LOGD("fNET", "Tunnel %s:%s : Connected.", portName.c_str(), sessionID.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connected.", portName.c_str(), sessionID.c_str());
         OnConnect.Invoke(&remoteMAC);
         lastTransmissionMS = millis();
 
@@ -539,7 +540,7 @@ protected:
     }
 
     DynamicJsonDocument* HandleConnect(DynamicJsonDocument* dat) {
-        ESP_LOGD("fNET", "Tunnel %s : Received connection request.", portName.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s : Received connection request.", portName.c_str());
 
         DynamicJsonDocument& d = *dat;
         DynamicJsonDocument* r = new DynamicJsonDocument(256);
@@ -561,7 +562,7 @@ protected:
 
         (*r)["status"] = "ok";
 
-        ESP_LOGD("fNET", "Tunnel %s:%s : Connected to %s.", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connected to %s.", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
 
         lastTransmissionMS = millis();
 
@@ -569,7 +570,7 @@ protected:
     }
 
     DynamicJsonDocument& HandleDisconnect() {
-        ESP_LOGD("fNET", "Tunnel %s:%s : Connection closed by remote host.", portName.c_str(), sessionID.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connection closed by remote host.", portName.c_str(), sessionID.c_str());
 
         String rm = remoteMAC;
 
@@ -578,7 +579,7 @@ protected:
     }
 
     void LostConnection() {
-        ESP_LOGD("fNET", "Tunnel %s:%s : Lost connection.", portName.c_str(), sessionID.c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Lost connection.", portName.c_str(), sessionID.c_str());
 
         sessionID = "";
         //remoteMAC = "";
@@ -855,8 +856,8 @@ public:
     static painlessMesh* mesh;
 
     static Connection_t* Init(painlessMesh* Mesh) {
-        ESP_LOGD("fNET", "Mesh: Initializing.");
-        ESP_LOGD("fNET", "Mesh: I am: %s", ToChipID(Mesh->getNodeId()).c_str());
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Mesh: Initializing.");
+        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Mesh: I am: %s", ToChipID(Mesh->getNodeId()).c_str());
 
         mesh = Mesh;
 
@@ -876,7 +877,7 @@ private:
     static Connection_t* Connection;
 
     static bool send(String msg, uint32_t dest) {
-        ESP_LOGV("fNET", "Mesh: Sending %s to %s.", msg.c_str(), String(dest, 16).c_str());
+        RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Sending %s to %s.", msg.c_str(), String(dest, 16).c_str());
 
         bool result;
 
@@ -886,8 +887,8 @@ private:
             result = mesh->sendSingle(dest, msg);
 
         if (!result) {
-            ESP_LOGV("fNET", "Mesh: Failed to send.");
-            ESP_LOGV("fNET", "Mesh: Data was: %s", msg.c_str());
+            RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Failed to send.");
+            RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Data was: %s", msg.c_str());
 
             return false;
         }
@@ -903,7 +904,7 @@ private:
             while (!event_queue.isEmpty())
             {
                 DynamicJsonDocument* d = event_queue.shift();
-                ESP_LOGV("fNET", "Mesh: Processing message: %s", (*d)["source"].as<String>().c_str());
+                RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Processing message: %s", (*d)["source"].as<String>().c_str());
                 Connection->OnReceiveMessage(*d);
                 delete d;
             }
@@ -920,14 +921,14 @@ private:
             delay(10);
 
             if (millis() - last_millis > 30)
-                ESP_LOGD("fNET", "Mesh: Update took too long: %d ms.", millis() - last_millis);
+                RemoteLog.log(ESP_LOG_WARN, "fNET", "Mesh: Update took too long: %d ms.", millis() - last_millis);
 
             last_millis = millis();
         }
     }
 
     static void on_received_data(const uint32_t from, String received) {
-        ESP_LOGV("fNET", "Mesh: Received message: %s", received.c_str());
+        RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Received message: %s", received.c_str());
         DynamicJsonDocument* d = new DynamicJsonDocument(2048);
 
         //Serial.println("[ESP-NOW] Buffer: " + buffer);
@@ -937,7 +938,7 @@ private:
             vTaskResume(event_task_handle);
         }
         else {
-            ESP_LOGE("fNET", "Mesh: Received malformed message: %s", received.c_str());
+            RemoteLog.log(ESP_LOG_VERBOSE, "fNET", "Mesh: Received malformed message: %s", received.c_str());
             //delete d;
         }
     }

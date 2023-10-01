@@ -1,8 +1,10 @@
 //#define I2C_BUFFER_LENGTH 128
 #define DEFAULT_FTP_SERVER_NETWORK_TYPE_ESP32 NETWORK_ESP32
 #define DEFAULT_STORAGE_TYPE_ESP32 STORAGE_LITTLEFS
+#define ELEGANTOTA_USE_ASYNC_WEBSERVER 1
 
 #include <painlessMesh.h>
+#include <RemoteUDPLogging.h>
 
 #include <SPI.h>
 #include <WiFi.h>
@@ -14,6 +16,8 @@
 #include <Update.h>
 #include <SPIFFS.h>
 #include <AsyncTCP.h>
+#include <AsyncUDP.h>
+#include <elop.h>
 #include <NTPClient.h>
 
 #include "fNETLib.h"
@@ -33,6 +37,7 @@
 #include <ESPAsyncWebServer.h>
 #include <FFat.h>
 #include <SimpleFTPServer.h>
+#include <ElegantOTA.h>
 #include "fGMSServer.h"
 
 #include "esp_bt.h"
@@ -42,6 +47,7 @@
 //fNETSlaveConnection* d = new fNETSlaveConnection((uint8_t)0x01, (int)0);
 
 painlessMesh mesh;
+AsyncWebServer ota_server(81);
 
 //#define configUSE_TRACE_FACILITY 1
 
@@ -86,7 +92,7 @@ void setup() {
 
     mesh.init("Ata_Tohum_MESH", "16777216", 11753, WIFI_MODE_APSTA, 1);
 
-    mesh.stationManual("Ata_Tohum_Sera", "Sera_16777216", 0, IPAddress(192, 168, 5, 4));
+    mesh.stationManual("Ata_Tohum_Sera", "Sera_16777216", 0, IPAddress(192, 168, 5, 253));
     mesh.setHostname("Ata_Tohum_Controller");
 
     mesh.setRoot(true);
@@ -106,6 +112,15 @@ void setup() {
     //fGMS::SensorModules[0]->SetFan(true);
 
     fGMSServer::Init();
+    RemoteLog.begin(IPAddress(192, 168, 5, 1), 11752);
+    RemoteLog.log(ESP_LOG_INFO, "main", "Started!");
+
+    ElegantOTA.begin(&ota_server);
+
+    ota_server.on("/", [](AsyncWebServerRequest* r) {
+        r->send(200, "text/html", "Update server ok, build date/time " + String(__DATE__) + String(__TIMESTAMP__) + ", uptime: " + String(millis()));
+        });
+    ota_server.begin();
 
     /*if (fGMS::serverEnabled) {
         //fGMS::serverEnabled = false;
@@ -145,10 +160,10 @@ void loop() {
 
     String uptime = String(floor(days), 0) + "d" + String(floor(fmod(hours, 24)), 0) + "h" + String(floor(fmod(minutes, 60)), 0) + "m" + String(floor(fmod(seconds, 60)), 0) + "s";
 
-    Serial.println("Up              : " + String(uptime));
-    Serial.println("Heap            : " + String(ESP.getFreeHeap()));
-    Serial.println("Largest block   : " + String(heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)));
-    Serial.println("IP              : " + WiFi.localIP().toString());
+    RemoteLog.log(ESP_LOG_DEBUG, "main", "Up\t\t:%s", String(uptime).c_str());
+    RemoteLog.log(ESP_LOG_DEBUG, "main", "Heap\t\t:%s", String(ESP.getFreeHeap()));
+    RemoteLog.log(ESP_LOG_DEBUG, "main", "Block\t\t:%u", heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+    RemoteLog.log(ESP_LOG_DEBUG, "main", "IP\t\t:%s", WiFi.localIP().toString().c_str());
 
     /*
     TaskStatus_t statuses[32];

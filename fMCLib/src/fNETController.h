@@ -9,11 +9,13 @@
 #include <LittleFS.h>
 #include <CircularBuffer.h>
 #include <esp_now.h>
+#include <RemoteUDPLogging.h>
 
 #include "fNETStringFunctions.h"
 #include "fNETMessages.h"
 #include "fNETLib.h"
 #include "fEvents.h"
+
 
 class fNETController {
 public:
@@ -54,7 +56,7 @@ public:
             }
 
             if (millis() - last_config_requested_ms > 10000 && millis() - connected_ms > 4000 && (last_config_requested_ms == 0 || Config.isNull())) {
-                ESP_LOGI("fNET Controller", "Module: %s, Sent config request.", MAC_Address.c_str());
+                RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Module: %s, Sent config request.", MAC_Address.c_str());
 
                 SendCommand("getConfig");
                 last_config_requested_ms = millis();
@@ -78,12 +80,12 @@ public:
         }
 
         void Restart() {
-            ESP_LOGI("fNET Controller", "Module: %s, Sent restart request.", MAC_Address.c_str());
+            RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Module: %s, Sent restart request.", MAC_Address.c_str());
             SendCommand("restart");
         }
 
-        void Restart(String name) {
-            ESP_LOGI("fNET Controller", "Module: %s, Sent set name request.", MAC_Address.c_str());
+        void SetName(String name) {
+            RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Module: %s, Sent set name request.", MAC_Address.c_str());
 
             DynamicJsonDocument d(256);
             d["command"] = "setName";
@@ -108,21 +110,21 @@ public:
             String c_str;
             serializeJson(d, c_str);
 
-            ESP_LOGV("fNET Controller", "Module: %s, Received message: %s", MAC_Address.c_str(), c_str.c_str());
+            RemoteLog.log(ESP_LOG_VERBOSE, "fNET Controller", "Module: %s, Received message: %s", MAC_Address.c_str(), c_str.c_str());
 
             if (d["type"] == "config")
                 OnReceiveConfig(d["data"]);
         }
 
         void OnReceiveConfig(String d) {
-            ESP_LOGV("fNET Controller", "Module: %s, Received config.", MAC_Address.c_str());
+            RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Module: %s, Received config.", MAC_Address.c_str());
 
             String c_str;
             serializeJson(Config, c_str);
 
             if (c_str != d)
             {
-                ESP_LOGD("fNET Controller", "Module: %s, Saved new config: %s", MAC_Address.c_str(), d.c_str());
+                RemoteLog.log(ESP_LOG_DEBUG, "fNET Controller", "Module: %s, Saved new config: %s", MAC_Address.c_str(), d.c_str());
                 deserializeJson(Config, d);
 
                 MAC_Address = Config["macAddress"].as<String>();
@@ -132,14 +134,14 @@ public:
         }
 
         void Disconnected() {
-            ESP_LOGW("fNET Controller", "Module: %s, Disconnected.", MAC_Address.c_str());
+            RemoteLog.log(ESP_LOG_WARN, "fNET Controller", "Module: %s, Disconnected.", MAC_Address.c_str());
             isOnline = false;
 
             OnModuleDisconnected.Invoke((void*)this);
         }
 
         void Reconnected() {
-            ESP_LOGW("fNET Controller", "Module: %s, Connected.", MAC_Address.c_str());
+            RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Module: %s, Connected.", MAC_Address.c_str());
             isOnline = true;
             connected_ms = millis();
 
@@ -175,7 +177,7 @@ public:
         Connection = c;
         Connection->MessageReceived = OnMessageReceived;
 
-        ESP_LOGI("fNET Controller", "Build date / time: % s / % s", __DATE__, __TIME__);
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Build date / time: % s / % s", __DATE__, __TIME__);
 
         status_d = "read_cfg";
         ReadConfig();
@@ -184,7 +186,7 @@ public:
 
         //Serial.println("[fNET] Loading modules...");
 
-        ESP_LOGI("fNET Controller", "Done initializing.");
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Done initializing.");
 
         status_d = "ok";
     }
@@ -223,7 +225,7 @@ public:
         ESP_LOGD("fNET Controller", "New data: %s", data_serialized.c_str());
 
         if (data_serialized.length() < 8) {
-            ESP_LOGE("fNET Controller", "Failed to save!");
+            RemoteLog.log(ESP_LOG_ERROR, "fNET Controller", "Failed to save!");
             return;
         }
 
@@ -231,7 +233,7 @@ public:
         data_file.print(data_serialized.c_str());
         data_file.close();
 
-        ESP_LOGI("fNET Controller", "Saved.");
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Saved.");
 
         delete& data;
     }
@@ -259,7 +261,7 @@ public:
     }
 
     static void Scan() {
-        ESP_LOGW("fNET Controller", "Scanning for modules.");
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Scanning for modules.");
         SendDiscovery("broadcast");
     }
 
@@ -283,7 +285,7 @@ private:
 
         String data_rawJson = data_file.readString();
         deserializeJson(data, data_rawJson);
-        ESP_LOGI("fNET Controller", "Read config: %s", data_rawJson.c_str());
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Read config: %s", data_rawJson.c_str());
 
         status_d = "load_mdl";
         LoadModules(data["moduleData"]);
@@ -297,7 +299,7 @@ private:
             String mac = o["macAddress"];
             JsonObject config_o = o["data"];
 
-            ESP_LOGI("fNET Controller", "Loaded module: %s", mac.c_str());
+            RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Loaded module: %s", mac.c_str());
 
             esp_now_peer_info_t peer_t = {};
             if (!Connection->IsAddressValid(mac))
@@ -321,7 +323,7 @@ private:
     }
 
     static void AddNewModule(String mac) {
-        ESP_LOGI("fNET Controller", "Add new module: %s", mac.c_str());
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Add new module: %s", mac.c_str());
 
         Module* dat = new Module(mac);
         //dat->SetI2CAddr(I2C_GetEmptyAddr(0));
@@ -332,7 +334,7 @@ private:
     }
 
     static void SendDiscovery(String recipient) {
-        ESP_LOGI("fNET Controller", "Sending availability status to: %s", recipient.c_str());
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Sending availability status to: %s", recipient.c_str());
 
         DynamicJsonDocument d(512);
         d["recipient"] = recipient;
@@ -350,7 +352,7 @@ private:
     }
 
     static void ConnectModule(String mac) {
-        ESP_LOGI("fNET Controller", "Connecting module: %s", mac.c_str());
+        RemoteLog.log(ESP_LOG_INFO, "fNET Controller", "Connecting module: %s", mac.c_str());
 
         Module* m = GetModuleByMAC(mac);
 
