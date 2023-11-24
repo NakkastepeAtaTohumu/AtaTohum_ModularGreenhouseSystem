@@ -221,7 +221,7 @@ public:
             if (isWatering && GetAverage() > map_max)
                 isWatering = false;
 
-            if (!isWatering && GetAverage() < map_max)
+            if (!isWatering && GetAverage() < map_min)
                 isWatering = true;
 
             return isWatering;
@@ -415,7 +415,7 @@ public:
 
             bool state_different = ((bitmask & prev_state) > 0) != state;
 
-            Serial.println("[fGMS Valve Controller] Queuing valve state of module " + module_mac + ", valve: " + String(valve) + ", state: " + String(NextState));
+            //Serial.println("[fGMS Valve Controller] Queuing valve state of module " + module_mac + ", valve: " + String(valve) + ", state: " + String(NextState));
 
             if (state_different) {
                 uint8_t new_state = prev_state ^ ((int)pow(2, valve));

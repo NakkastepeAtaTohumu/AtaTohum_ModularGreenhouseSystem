@@ -488,7 +488,7 @@ public:
 
 protected:
     bool TryConnect() {
-        RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connecting to: %s", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
+        //RemoteLog.log(ESP_LOG_DEBUG, "fNET", "Tunnel %s:%s : Connecting to: %s", portName.c_str(), sessionID.c_str(), remoteMAC.c_str());
 
         if (!Initialized) {
             RemoteLog.log(ESP_LOG_ERROR, "fNET", "Tunnel %s : Tunnel not initialized!", portName.c_str());

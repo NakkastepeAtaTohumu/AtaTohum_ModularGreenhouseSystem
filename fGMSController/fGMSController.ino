@@ -58,6 +58,7 @@ void newConnectionCallback(uint32_t nodeId) {
 
 void setup() {
     esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
+    RemoteLog.log_level = ESP_LOG_ERROR;
     //fSerialParser::BeginAsTask(115200);
     Serial.begin(115200);
     Serial.println("Starting");
@@ -102,6 +103,8 @@ void setup() {
 
     MDNS.begin("Ata_Tohum_MAIN");
     WiFi.setHostname("Ata_Tohum_MAIN");
+    RemoteLog.begin(IPAddress(192, 168, 5, 1), 11752);
+    RemoteLog.log(ESP_LOG_INFO, "main", "Started!");
 
     fNETConnection* c = fNET_Mesh::Init(&mesh);
 
@@ -112,8 +115,6 @@ void setup() {
     //fGMS::SensorModules[0]->SetFan(true);
 
     fGMSServer::Init();
-    RemoteLog.begin(IPAddress(192, 168, 5, 1), 11752);
-    RemoteLog.log(ESP_LOG_INFO, "main", "Started!");
 
     ElegantOTA.begin(&ota_server);
 

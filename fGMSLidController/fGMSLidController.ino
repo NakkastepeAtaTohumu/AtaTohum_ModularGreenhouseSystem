@@ -1,4 +1,6 @@
 #include <painlessMesh.h>
+#include <AsyncUDP.h>
+#include <RemoteUDPLogging.h>
 
 #include <SPI.h>
 #include <WiFi.h>

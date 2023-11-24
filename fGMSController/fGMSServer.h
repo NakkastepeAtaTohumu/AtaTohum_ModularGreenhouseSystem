@@ -331,7 +331,7 @@ public:
                     h = fGMS::GetHygrometer(hygrometer);
 
                 if (h == nullptr) {
-                    r->send(400, "text/html", "Hygrometer not found"); 
+                    r->send(400, "text/html", "Hygrometer not found");
                     return;
                 }
 
@@ -766,10 +766,7 @@ private:
             float val = fGMS::HygrometerGroups[i]->GetAverage();
             o["a"] = val >= 0 ? val * 100 : -1;
 
-            if (fGMS::HygrometerGroups[i]->isOverride)
-                o["w"] = fGMS::HygrometerGroups[i]->overrideWater;
-            else
-                o["w"] = fGMS::AutomaticWatering ? fGMS::HygrometerGroups[i]->isWatering : false;
+            o["w"] = fGMS::AutomaticWatering ? fGMS::HygrometerGroups[i]->UpdateWateringState() : false;
         }
 
         d["auto"] = fGMS::AutomaticWatering;

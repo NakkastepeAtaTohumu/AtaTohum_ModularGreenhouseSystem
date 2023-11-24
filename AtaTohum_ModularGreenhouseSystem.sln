@@ -172,9 +172,11 @@ Global
 		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\FS\2.0.0\FS\FS-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\LittleFS\2.0.0\LittleFS\LittleFS-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
+		Libraries\Painless_Mesh\1.5.0\Painless_Mesh\Painless_Mesh-1.5.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\TaskScheduler\3.7.0\TaskScheduler\TaskScheduler-3.7.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\WiFi\2.0.0\WiFi\WiFi-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		Libraries\Wire\2.0.0\Wire\Wire-2.0.0.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
+		RemoteUDPLogging\RemoteUDPLogging.vcxitems*{2d9161ed-544e-4494-a153-c59c2737a767}*SharedItemsImports = 4
 		fMCLib\fMCLib.vcxitems*{39778ce5-6bfe-498b-841f-8432a1d75d29}*SharedItemsImports = 4
 		Libraries\ArduinoJson\6.19.1\ArduinoJson\ArduinoJson-6.19.1.vcxitems*{39778ce5-6bfe-498b-841f-8432a1d75d29}*SharedItemsImports = 4
 		Libraries\CircularBuffer\1.3.3\CircularBuffer\CircularBuffer-1.3.3.vcxitems*{39778ce5-6bfe-498b-841f-8432a1d75d29}*SharedItemsImports = 4
